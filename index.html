@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Site &amp; Field Operations Management System — VEW &amp; Vibra</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.4/dexie.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon"><i class="fas fa-cubes-stacked"></i></div>
+      <div class="brand-text">
+        <h2>Site Operations</h2>
+        <p>Field &amp; Asset Management</p>
+      </div>
+    </div>
+
+    <!-- Active Desktop Operator Indicator -->
+    <div class="operator-card">
+      <div class="operator-profile">
+        <div class="op-avatar" id="sidebar-op-avatar">OP</div>
+        <div class="op-info">
+          <span class="op-name" id="sidebar-op-name">Desktop Operator 1</span>
+          <span class="op-title">Desktop Data Entry Active</span>
+        </div>
+      </div>
+      <button class="btn-switch-op" title="Switch Operator Profile" onclick="openModal('modal-operator-switch')">
+        <i class="fas fa-user-pen"></i>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main Operations</div>
+      <a class="nav-item active" data-view="drilldown" onclick="showView('drilldown')">
+        <i class="fas fa-sitemap"></i><span>Site &amp; Supervisor Explorer</span>
+      </a>
+      <a class="nav-item" data-view="morning-reports" onclick="showView('morning-reports')">
+        <i class="fas fa-book-open"></i><span>Daily Morning Reports</span>
+      </a>
+
+      <div class="nav-section">Field Assets &amp; Manpower</div>
+      <a class="nav-item" data-view="machinery" onclick="showView('machinery')">
+        <i class="fas fa-truck-monster"></i><span>Machinery &amp; Equipment</span>
+      </a>
+      <a class="nav-item" data-view="tools" onclick="showView('tools')">
+        <i class="fas fa-toolbox"></i><span>Tools &amp; Inventory</span>
+      </a>
+
+      <div class="nav-section">Finance &amp; Cash Flow</div>
+      <a class="nav-item" data-view="cash-flow" onclick="showView('cash-flow')">
+        <i class="fas fa-hand-holding-dollar"></i><span>Supervisor Cash &amp; Imprest</span>
+      </a>
+
+      <div class="nav-section">System &amp; Verification</div>
+      <a class="nav-item" data-view="audit-log" onclick="showView('audit-log')">
+        <i class="fas fa-clock-rotate-left"></i><span>Operator Audit Trail</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span>Enterprise System v3.0</span>
+      <span style="opacity:0.8">100% Offline Ready</span>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN APPLICATION WRAPPER ==================== -->
+  <div class="main-wrapper">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-title">
+        <i class="fas fa-layer-group" style="color:var(--primary);font-size:18px"></i>
+        <h1 id="topbar-page-title">Site &amp; Supervisor Operations Explorer</h1>
+        <span id="topbar-page-desc">Select a Site and Supervisor to inspect date-wise details</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-morning-report')">
+          <i class="fas fa-plus"></i> Record Morning Report
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="openModal('modal-deploy-machine')">
+          <i class="fas fa-truck-monster"></i> Deploy Machine
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="openModal('modal-add-tool')">
+          <i class="fas fa-toolbox"></i> Issue Tool
+        </button>
+        <button class="btn btn-success btn-sm" onclick="openModal('modal-cash-inflow')">
+          <i class="fas fa-money-bill-transfer"></i> Give Cash
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="openModal('modal-expense')">
+          <i class="fas fa-receipt"></i> Record Expense
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+
+      <!-- ============================================================= -->
+      <!-- VIEW 1: DRILLDOWN EXPLORER (CORE WORKFLOW)                    -->
+      <!-- ============================================================= -->
+      <section id="view-drilldown" class="page-view active">
+
+        <!-- Selector Strip: Choose Site & Supervisor -->
+        <div class="selector-strip">
+          <div class="selector-unit">
+            <label><i class="fas fa-map-location-dot"></i> Step 1: Work Site</label>
+            <select id="drilldown-site-select" class="selector-dropdown" onchange="onDrilldownSiteChange()">
+              <!-- Populated by JS -->
+            </select>
+          </div>
+
+          <div class="selector-unit">
+            <label><i class="fas fa-user-tie"></i> Step 2: Site Supervisor In-Charge</label>
+            <select id="drilldown-sup-select" class="selector-dropdown" onchange="onDrilldownSupChange()">
+              <!-- Populated by JS -->
+            </select>
+          </div>
+
+          <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+            <button class="btn btn-secondary btn-sm" onclick="renderDrilldownView()">
+              <i class="fas fa-rotate"></i> Refresh Data
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="exportDrilldownExcel()">
+              <i class="fas fa-file-excel"></i> Export Ledger (.xlsx)
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="printSettlementSlip()">
+              <i class="fas fa-print"></i> Print Hisaab Sheet
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Site Selection Cards Carousel -->
+        <div style="margin: 18px 0 10px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;margin-bottom:8px">
+            Quick Site Switcher (Click any site card to load immediately)
+          </div>
+          <div class="sites-grid" id="drilldown-sites-carousel">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Active Context Banner -->
+        <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg, #ffffff, #f8fafc)">
+          <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div style="display:flex;align-items:center;gap:14px">
+              <div style="width:44px;height:44px;border-radius:10px;background:#eff6ff;color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:20px">
+                <i class="fas fa-building-circle-check"></i>
+              </div>
+              <div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <h2 style="font-size:18px;font-weight:800;color:var(--text-main)" id="banner-site-name">1378 Saharanpur</h2>
+                  <span id="banner-site-status" class="badge badge-running">Running</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+                  Assigned Supervisor: <strong style="color:var(--text-main)" id="banner-sup-name">Jahid</strong>
+                  <span style="margin:0 8px">|</span>
+                  Operational Status: <b>All systems active &amp; verified</b>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="openModal('modal-morning-report')">
+                <i class="fas fa-plus"></i> Add New Date Log
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drilldown Tabbed Content Area -->
+        <div class="card">
+          <!-- Tab Navigation -->
+          <div class="drill-tabs-nav">
+            <button class="drill-tab active" id="tab-btn-manpower" onclick="switchDrillTab('manpower')">
+              <i class="fas fa-users-gear"></i> Manpower &amp; Daily Labour
+            </button>
+            <button class="drill-tab" id="tab-btn-machinery" onclick="switchDrillTab('machinery')">
+              <i class="fas fa-truck-monster"></i> Machinery Deployment (Hourly &amp; Daily)
+            </button>
+            <button class="drill-tab" id="tab-btn-tools" onclick="switchDrillTab('tools')">
+              <i class="fas fa-toolbox"></i> Tools &amp; Equipment
+            </button>
+            <button class="drill-tab" id="tab-btn-imprest" onclick="switchDrillTab('imprest')">
+              <i class="fas fa-wallet"></i> Cash Flow &amp; Imprest Reconciliation
+            </button>
+          </div>
+
+          <!-- PANE 1: MANPOWER & DAILY LABOUR -->
+          <div id="tab-pane-manpower" class="drill-tab-pane active">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Supervisor In-Charge</th>
+                    <th>Worker Category</th>
+                    <th>Labour Type / Details</th>
+                    <th>Headcount (Nos)</th>
+                    <th>Rate per Head (₹)</th>
+                    <th>Total Wage (₹)</th>
+                    <th>Daily Work Description</th>
+                  </tr>
+                </thead>
+                <tbody id="drill-manpower-tbody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+            <div id="drill-manpower-summary"></div>
+          </div>
+
+          <!-- PANE 2: MACHINERY LOG -->
+          <div id="tab-pane-machinery" class="drill-tab-pane">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Machine Name</th>
+                    <th>Ownership</th>
+                    <th>Billing Type</th>
+                    <th>Usage Recorded</th>
+                    <th>Unit Rate (₹)</th>
+                    <th>Rental Cost (₹)</th>
+                    <th>Fuel / Diesel (₹)</th>
+                    <th>Combined Total (₹)</th>
+                    <th>Paid By (Imprest)</th>
+                  </tr>
+                </thead>
+                <tbody id="drill-machinery-tbody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+            <div id="drill-machinery-summary"></div>
+          </div>
+
+          <!-- PANE 3: TOOLS & EQUIPMENT -->
+          <div id="tab-pane-tools" class="drill-tab-pane">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Tool Description</th>
+                    <th>Serial / Tag No</th>
+                    <th>Category</th>
+                    <th>Tool Valuation (₹)</th>
+                    <th>Assigned To</th>
+                    <th>Issue Date</th>
+                    <th>Status</th>
+                    <th>Operating Condition</th>
+                  </tr>
+                </thead>
+                <tbody id="drill-tools-tbody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+            <div id="drill-tools-summary"></div>
+          </div>
+
+          <!-- PANE 4: CASH FLOW & IMPREST RECONCILIATION -->
+          <div id="tab-pane-imprest" class="drill-tab-pane">
+            <div id="drill-imprest-container">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ============================================================= -->
+      <!-- VIEW 2: DAILY MORNING REPORTS MASTER LEDGER                   -->
+      <!-- ============================================================= -->
+      <section id="view-morning-reports" class="page-view">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3><i class="fas fa-book-open" style="color:var(--primary)"></i> Master Daily Morning Reports</h3>
+              <p>Chronological feed of all daily site logs received from field supervisors</p>
+            </div>
+            <div class="card-controls">
+              <button class="btn btn-primary btn-sm" onclick="openModal('modal-morning-report')">
+                <i class="fas fa-plus"></i> New Morning Report
+              </button>
+            </div>
+          </div>
+
+          <div style="background:#f8fafc;padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap">
+            <div class="form-group" style="min-width:180px">
+              <label>Filter Work Site</label>
+              <select id="filter-reports-site" class="form-control" onchange="renderMorningReportsTable()">
+                <option value="All">All Sites</option>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:180px">
+              <label>Filter Supervisor</label>
+              <select id="filter-reports-sup" class="form-control" onchange="renderMorningReportsTable()">
+                <option value="All">All Supervisors</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;min-width:220px">
+              <label>Search Work Description / Remarks</label>
+              <input type="text" id="filter-reports-search" class="form-control" placeholder="Search daily work, excavation, brickwork..." oninput="renderMorningReportsTable()"/>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Work Site</th>
+                  <th>Site Status</th>
+                  <th>Reported By</th>
+                  <th>Total Manpower</th>
+                  <th>Manpower Wages (₹)</th>
+                  <th>Work Summary</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="morning-reports-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================= -->
+      <!-- VIEW 3: MACHINERY & EQUIPMENT TRACKER                         -->
+      <!-- ============================================================= -->
+      <section id="view-machinery" class="page-view">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3><i class="fas fa-truck-monster" style="color:var(--teal)"></i> Machinery Fleet &amp; Operations Tracker</h3>
+              <p>Overview of heavy equipment running hours, per-day rentals, fuel consumption, and status</p>
+            </div>
+            <div class="card-controls">
+              <button class="btn btn-primary btn-sm" onclick="openModal('modal-deploy-machine')">
+                <i class="fas fa-plus"></i> Deploy Machine
+              </button>
+            </div>
+          </div>
+
+          <div style="background:#f8fafc;padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap">
+            <div class="form-group" style="min-width:180px">
+              <label>Filter Site</label>
+              <select id="filter-mach-site" class="form-control" onchange="renderAllMachineryTable()">
+                <option value="All">All Sites</option>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:180px">
+              <label>Filter Supervisor</label>
+              <select id="filter-mach-sup" class="form-control" onchange="renderAllMachineryTable()">
+                <option value="All">All Supervisors</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Machine Name</th>
+                  <th>Work Site</th>
+                  <th>Supervisor</th>
+                  <th>Ownership</th>
+                  <th>Billing Mode</th>
+                  <th>Usage Recorded</th>
+                  <th>Rental Amount (₹)</th>
+                  <th>Fuel / Diesel (₹)</th>
+                  <th>Combined Cost (₹)</th>
+                </tr>
+              </thead>
+              <tbody id="all-machinery-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================= -->
+      <!-- VIEW 4: TOOLS & INVENTORY TRACKER                             -->
+      <!-- ============================================================= -->
+      <section id="view-tools" class="page-view">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3><i class="fas fa-toolbox" style="color:var(--warning)"></i> Tools &amp; Equipment Inventory</h3>
+              <p>Valuation tracking, serial tags, personnel assignment and field condition</p>
+            </div>
+            <div class="card-controls">
+              <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-tool')">
+                <i class="fas fa-plus"></i> Issue New Tool
+              </button>
+            </div>
+          </div>
+
+          <div style="background:#f8fafc;padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap">
+            <div class="form-group" style="min-width:180px">
+              <label>Filter Site</label>
+              <select id="filter-tools-site" class="form-control" onchange="renderAllToolsTable()">
+                <option value="All">All Sites</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;min-width:220px">
+              <label>Search Tool / Tag / Custodian</label>
+              <input type="text" id="filter-tools-search" class="form-control" placeholder="Search cut-off saw, drill, tag, worker..." oninput="renderAllToolsTable()"/>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tool Description</th>
+                  <th>Serial / Tag</th>
+                  <th>Category</th>
+                  <th>Cost Valuation (₹)</th>
+                  <th>Current Site</th>
+                  <th>Assigned Person</th>
+                  <th>Issue Date</th>
+                  <th>Status</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody id="all-tools-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================= -->
+      <!-- VIEW 5: CASH FLOW & IMPREST LEDGER                            -->
+      <!-- ============================================================= -->
+      <section id="view-cash-flow" class="page-view">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3><i class="fas fa-hand-holding-dollar" style="color:var(--success)"></i> Master Expense &amp; Cash Flow Ledger</h3>
+              <p>Audited records of site expenditures funded from Company Imprest vs Supervisor Out-of-Pocket</p>
+            </div>
+            <div class="card-controls">
+              <button class="btn btn-success btn-sm" onclick="openModal('modal-cash-inflow')">
+                <i class="fas fa-money-bill-transfer"></i> Give Cash Advance
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="openModal('modal-expense')">
+                <i class="fas fa-plus"></i> Record Expense
+              </button>
+            </div>
+          </div>
+
+          <div style="background:#f8fafc;padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap">
+            <div class="form-group" style="min-width:180px">
+              <label>Filter Supervisor</label>
+              <select id="filter-exp-sup" class="form-control" onchange="renderCashFlowTables()">
+                <option value="All">All Supervisors</option>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:180px">
+              <label>Funding Source</label>
+              <select id="filter-exp-source" class="form-control" onchange="renderCashFlowTables()">
+                <option value="All">All Sources</option>
+                <option value="company">🏢 Company Fund</option>
+                <option value="self">👤 Supervisor Own Pocket</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Supervisor</th>
+                  <th>Work Site</th>
+                  <th>Category</th>
+                  <th>Paid To / Purpose</th>
+                  <th>Voucher No</th>
+                  <th>Funding Source</th>
+                  <th>Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody id="all-expenses-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================= -->
+      <!-- VIEW 6: DESKTOP OPERATOR AUDIT TRAIL                          -->
+      <!-- ============================================================= -->
+      <section id="view-audit-log" class="page-view">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3><i class="fas fa-clock-rotate-left" style="color:var(--primary)"></i> Desktop Data Entry Audit Log</h3>
+              <p>Chronological audit record tracking which operator created, modified or recorded each transaction</p>
+            </div>
+            <div class="card-controls">
+              <input type="text" id="filter-audit-search" class="form-control" placeholder="Search audit logs..." style="width:250px" oninput="renderAuditTrailTable()"/>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Desktop Operator</th>
+                  <th>Action</th>
+                  <th>Module</th>
+                  <th>Transaction Details</th>
+                </tr>
+              </thead>
+              <tbody id="all-audit-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+
+  <!-- ============================================================= -->
+  <!-- MODALS FOR DATA ENTRY                                         -->
+  <!-- ============================================================= -->
+
+  <!-- Modal 1: Record Morning Report -->
+  <div class="modal-backdrop" id="modal-morning-report">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h4><i class="fas fa-book-open" style="color:var(--primary)"></i> Record Daily Morning Report</h4>
+        <button class="modal-close" onclick="closeModal('modal-morning-report')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Report Date <span class="required">*</span></label>
+            <input type="date" id="report-date-input" class="form-control" required/>
+          </div>
+          <div class="form-group">
+            <label>Work Site <span class="required">*</span></label>
+            <select id="report-site-input" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label>Site Operational Status</label>
+            <select id="report-status-input" class="form-control">
+              <option value="Running">Running</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Closed">Closed</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Supervisor In-Charge <span class="required">*</span></label>
+            <select id="report-sup-input" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label>Supervisor Attendance</label>
+            <select id="report-attendance-input" class="form-control">
+              <option value="Present">Present on Site</option>
+              <option value="On Leave">On Leave</option>
+              <option value="Absent">Absent</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Manpower Section -->
+        <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:700;color:var(--text-main);text-transform:uppercase;margin-bottom:10px">
+            <i class="fas fa-users-gear" style="color:var(--primary)"></i> Daily Manpower Deployment
+          </div>
+
+          <!-- Mason Row -->
+          <div class="form-row-3" style="margin-bottom:8px">
+            <div class="form-group">
+              <label>Mason (Count)</label>
+              <input type="number" id="rep-mason-count" class="form-control" placeholder="0" min="0"/>
+            </div>
+            <div class="form-group">
+              <label>Mason Rate per Head (₹)</label>
+              <input type="number" id="rep-mason-rate" class="form-control" placeholder="850" min="0"/>
+            </div>
+            <div class="form-group">
+              <label>Labour (Count)</label>
+              <input type="number" id="rep-labour-count" class="form-control" placeholder="0" min="0"/>
+            </div>
+          </div>
+
+          <!-- Labour & Painter Row -->
+          <div class="form-row-3" style="margin-bottom:8px">
+            <div class="form-group">
+              <label>Labour Rate per Head (₹)</label>
+              <input type="number" id="rep-labour-rate" class="form-control" placeholder="550" min="0"/>
+            </div>
+            <div class="form-group">
+              <label>Painter (Count)</label>
+              <input type="number" id="rep-painter-count" class="form-control" placeholder="0" min="0"/>
+            </div>
+            <div class="form-group">
+              <label>Painter Rate per Head (₹)</label>
+              <input type="number" id="rep-painter-rate" class="form-control" placeholder="800" min="0"/>
+            </div>
+          </div>
+
+          <!-- Contractor / Specialist Row -->
+          <div class="form-row-3">
+            <div class="form-group">
+              <label>Specialist / Welder (Count)</label>
+              <input type="number" id="rep-contractor-count" class="form-control" placeholder="0" min="0"/>
+            </div>
+            <div class="form-group">
+              <label>Rate / Lumpsum (₹)</label>
+              <input type="number" id="rep-contractor-rate" class="form-control" placeholder="1000" min="0"/>
+            </div>
+            <div class="form-group">
+              <label>Contractor Details</label>
+              <input type="text" id="rep-contractor-detail" class="form-control" placeholder="e.g. Tiles Mason or Structural Welder"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Work Description Today <span class="required">*</span></label>
+          <input type="text" id="report-work-input" class="form-control" placeholder="e.g. Curb stone casting, column footing excavation, pipe chamber brickwork" required/>
+        </div>
+
+        <div class="form-group">
+          <label>Remarks / Material Needed</label>
+          <input type="text" id="report-remarks-input" class="form-control" placeholder="e.g. 20 Bags Cement needed tomorrow"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-morning-report')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveMorningReport()"><i class="fas fa-check"></i> Save Report &amp; Post Wages</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal 2: Deploy Machine (Hourly System vs Daily Rate) -->
+  <div class="modal-backdrop" id="modal-deploy-machine">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h4><i class="fas fa-truck-monster" style="color:var(--teal)"></i> Deploy Machinery &amp; Equipment</h4>
+        <button class="modal-close" onclick="closeModal('modal-deploy-machine')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Machine Name <span class="required">*</span></label>
+            <input type="text" id="mach-name-input" class="form-control" placeholder="e.g. JCB 3DX Excavator, Concrete Mixer, Generator" required/>
+          </div>
+          <div class="form-group">
+            <label>Registration / Asset Tag</label>
+            <input type="text" id="mach-reg-input" class="form-control" placeholder="e.g. UP14-AB-1234 or GEN-02"/>
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Date <span class="required">*</span></label>
+            <input type="date" id="mach-date-input" class="form-control" required/>
+          </div>
+          <div class="form-group">
+            <label>Work Site <span class="required">*</span></label>
+            <select id="mach-site-input" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label>Supervisor In-Charge <span class="required">*</span></label>
+            <select id="mach-sup-input" class="form-control" required></select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Ownership</label>
+            <select id="mach-owner-input" class="form-control">
+              <option value="On Rent">On Rent (Third Party Rental)</option>
+              <option value="Own">Own (Company Owned - Zero Rent)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Billing System</label>
+            <div style="display:flex;gap:10px;margin-top:2px">
+              <label class="toggle-card selected" id="toggle-mach-hourly" onclick="selectMachineBilling('hourly')" style="flex:1;padding:8px">
+                <input type="radio" name="mach-billing" checked/>
+                <div><b>Hourly System</b><br/><small style="font-size:10px;color:var(--text-muted)">Per Hour Basis</small></div>
+              </label>
+              <label class="toggle-card" id="toggle-mach-daily" onclick="selectMachineBilling('daily')" style="flex:1;padding:8px">
+                <input type="radio" name="mach-billing"/>
+                <div><b>Daily Rate</b><br/><small style="font-size:10px;color:var(--text-muted)">Per Day Basis</small></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Inputs for Hourly vs Daily -->
+        <div id="mach-hourly-inputs" class="form-row-2">
+          <div class="form-group">
+            <label>Running Hours Used</label>
+            <input type="number" id="mach-hours-input" class="form-control" placeholder="e.g. 5.5" step="0.5" oninput="recalcMachineCost()"/>
+          </div>
+          <div class="form-group">
+            <label>Rate per Hour (₹)</label>
+            <input type="number" id="mach-rate-hr-input" class="form-control" placeholder="e.g. 950" oninput="recalcMachineCost()"/>
+          </div>
+        </div>
+
+        <div id="mach-daily-inputs" class="form-row-2" style="display:none">
+          <div class="form-group">
+            <label>Days Used</label>
+            <input type="number" id="mach-days-input" class="form-control" value="1" min="1" oninput="recalcMachineCost()"/>
+          </div>
+          <div class="form-group">
+            <label>Rent per Day (₹)</label>
+            <input type="number" id="mach-rate-day-input" class="form-control" placeholder="e.g. 1200" oninput="recalcMachineCost()"/>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Diesel / Fuel Cost (₹)</label>
+            <input type="number" id="mach-fuel-input" class="form-control" placeholder="e.g. 1800" oninput="recalcMachineCost()"/>
+          </div>
+          <div class="form-group">
+            <label>Estimated Total Cost</label>
+            <div id="mach-total-preview" style="padding:8px 12px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-weight:800;color:var(--primary);font-size:16px">
+              ₹0
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Remarks / Purpose of Machinery</label>
+          <input type="text" id="mach-remarks-input" class="form-control" placeholder="e.g. Excavation and soil leveling for pathway"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-deploy-machine')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveMachineryEntry()"><i class="fas fa-check"></i> Save Machinery Record</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal 3: Issue / Add Tool -->
+  <div class="modal-backdrop" id="modal-add-tool">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h4><i class="fas fa-toolbox" style="color:var(--warning)"></i> Issue Tool / Equipment</h4>
+        <button class="modal-close" onclick="closeModal('modal-add-tool')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Tool Description <span class="required">*</span></label>
+            <input type="text" id="tool-name-input" class="form-control" placeholder="e.g. Bosch Cut-Off Saw 14-Inch, Hammer Drill 26mm" required/>
+          </div>
+          <div class="form-group">
+            <label>Serial / Tool Tag No</label>
+            <input type="text" id="tool-tag-input" class="form-control" placeholder="e.g. TL-088"/>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Category</label>
+            <select id="tool-cat-input" class="form-control">
+              <option>Power Tools</option>
+              <option>Vibrators &amp; Needles</option>
+              <option>Survey &amp; Measuring</option>
+              <option>Finishing Equipment</option>
+              <option>General Hand Tools</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tool Valuation / Cost Price (₹)</label>
+            <input type="number" id="tool-cost-input" class="form-control" placeholder="e.g. 14500"/>
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Assigned Site <span class="required">*</span></label>
+            <select id="tool-site-input" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label>Assigned To (Person) <span class="required">*</span></label>
+            <input type="text" id="tool-assigned-input" class="form-control" placeholder="Supervisor or Specialist Worker name" required/>
+          </div>
+          <div class="form-group">
+            <label>Issue Date <span class="required">*</span></label>
+            <input type="date" id="tool-date-input" class="form-control" required/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Operating Condition</label>
+          <select id="tool-condition-input" class="form-control">
+            <option value="Good">Good / Ready to Use</option>
+            <option value="Calibrated">Calibrated (Precision Survey Tool)</option>
+            <option value="Needs Repair">Needs Blade / Minor Servicing</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Remarks</label>
+          <input type="text" id="tool-remarks-input" class="form-control" placeholder="e.g. Delivered with case and accessories"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-add-tool')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveToolEntry()"><i class="fas fa-check"></i> Register Tool</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal 4: Give Cash Advance to Supervisor -->
+  <div class="modal-backdrop" id="modal-cash-inflow">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h4><i class="fas fa-money-bill-transfer" style="color:var(--success)"></i> Give Cash Advance to Supervisor</h4>
+        <button class="modal-close" onclick="closeModal('modal-cash-inflow')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Supervisor (Recipient) <span class="required">*</span></label>
+            <select id="inflow-sup-input" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label>Work Site <span class="required">*</span></label>
+            <select id="inflow-site-input" class="form-control" required></select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Amount Given (₹) <span class="required">*</span></label>
+            <input type="number" id="inflow-amount-input" class="form-control" placeholder="e.g. 50000" min="1" required/>
+          </div>
+          <div class="form-group">
+            <label>Date <span class="required">*</span></label>
+            <input type="date" id="inflow-date-input" class="form-control" required/>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Payment Mode</label>
+            <select id="inflow-mode-input" class="form-control">
+              <option>Bank Transfer / NEFT</option>
+              <option>Cash (Head Office)</option>
+              <option>UPI / GPay / PhonePe</option>
+              <option>Cheque</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Voucher / Transaction Reference</label>
+            <input type="text" id="inflow-voucher-input" class="form-control" placeholder="e.g. NEFT-8801 or VCH-109"/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Remarks</label>
+          <input type="text" id="inflow-remarks-input" class="form-control" placeholder="e.g. Weekly imprest advance for labour wages and machinery"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-cash-inflow')">Cancel</button>
+        <button class="btn btn-success" onclick="saveCashInflow()"><i class="fas fa-check"></i> Save Cash Advance</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal 5: Record Expense (Company Fund vs Own Pocket) -->
+  <div class="modal-backdrop" id="modal-expense">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h4><i class="fas fa-receipt" style="color:var(--primary)"></i> Record Site Expenditure</h4>
+        <button class="modal-close" onclick="closeModal('modal-expense')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <!-- FUNDING SOURCE SELECTION -->
+        <div class="form-group">
+          <label>Funding Source (Who Paid For This Expense?) <span class="required">*</span></label>
+          <div class="form-toggle-cards">
+            <label class="toggle-card selected" id="toggle-company" onclick="selectFundingSource('company')">
+              <input type="radio" name="expense-source" value="company" checked/>
+              <div>
+                <strong>🏢 Company Imprest Fund</strong>
+                <small style="display:block;color:var(--text-muted);font-size:11px">Deducted from company cash advance</small>
+              </div>
+            </label>
+            <label class="toggle-card" id="toggle-self" onclick="selectFundingSource('self')">
+              <input type="radio" name="expense-source" value="self"/>
+              <div>
+                <strong>👤 Supervisor Own Pocket</strong>
+                <small style="display:block;color:var(--text-muted);font-size:11px">Paid by supervisor personally (Reimbursable)</small>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Supervisor In-Charge <span class="required">*</span></label>
+            <select id="exp-sup-input" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label>Work Site <span class="required">*</span></label>
+            <select id="exp-site-input" class="form-control" required></select>
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Expense Category <span class="required">*</span></label>
+            <select id="exp-cat-input" class="form-control">
+              <option>Labour Wages</option>
+              <option>Machinery on Rent</option>
+              <option>Machinery Fuel</option>
+              <option>Tool Purchase / Repair</option>
+              <option>Site Material</option>
+              <option>Local Transport &amp; Travel</option>
+              <option>Food &amp; Chai for Workers</option>
+              <option>Miscellaneous</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Amount (₹) <span class="required">*</span></label>
+            <input type="number" id="exp-amount-input" class="form-control" placeholder="0.00" min="1" step="any" required/>
+          </div>
+          <div class="form-group">
+            <label>Date <span class="required">*</span></label>
+            <input type="date" id="exp-date-input" class="form-control" required/>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Paid To / Person</label>
+            <input type="text" id="exp-paid-to-input" class="form-control" placeholder="e.g. Ramesh Mason / Petrol Pump / Hardware Store"/>
+          </div>
+          <div class="form-group">
+            <label>Bill / Voucher No</label>
+            <input type="text" id="exp-voucher-input" class="form-control" placeholder="e.g. VCH-882 or Cash Memo #"/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Remarks / Purpose</label>
+          <input type="text" id="exp-remarks-input" class="form-control" placeholder="Detailed purpose of purchase or work done"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-expense')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveExpenseEntry()"><i class="fas fa-check"></i> Save Expense</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal 6: Switch Operator Profile -->
+  <div class="modal-backdrop" id="modal-operator-switch">
+    <div class="modal-dialog" style="max-width:450px">
+      <div class="modal-header">
+        <h4><i class="fas fa-user-pen" style="color:var(--primary)"></i> Switch Desktop Operator Profile</h4>
+        <button class="modal-close" onclick="closeModal('modal-operator-switch')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Operator Name <span class="required">*</span></label>
+          <input type="text" id="operator-name-input" class="form-control" placeholder="e.g. Desktop Operator 1 or Accountant Sharma" required/>
+          <small style="color:var(--text-muted);font-size:11px;margin-top:4px">This name will be permanently stamped on every transaction audit log.</small>
+        </div>
+        <div class="form-group">
+          <label>Quick Presets</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="selectQuickOperator('Admin')">Admin</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="selectQuickOperator('Desktop Operator 1')">Desktop Operator 1</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="selectQuickOperator('Site Accountant')">Site Accountant</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="selectQuickOperator('Store Manager')">Store Manager</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-operator-switch')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveActiveOperator()"><i class="fas fa-check"></i> Set Active</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Tray -->
+  <div id="toast-tray"></div>
+
+  <!-- Scripts -->
+  <script src="js/seed_data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
