@@ -87,8 +87,23 @@ async function initializeDatabaseWithSeedData() {
   }
 }
 
+// Mobile Sidebar Toggle
+function toggleSidebar(forceState) {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) return;
+
+  const isOpen = typeof forceState === 'boolean' ? forceState : !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', isOpen);
+  if (backdrop) backdrop.classList.toggle('active', isOpen);
+}
+
 // ==================== VIEW NAVIGATION ====================
 function showView(viewId) {
+  if (window.innerWidth <= 992) {
+    toggleSidebar(false);
+  }
+
   document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
