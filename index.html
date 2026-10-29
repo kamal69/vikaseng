@@ -548,36 +548,39 @@
 
   <!-- Modal 1: Record Morning Report (Exact Excel Workbook Structure) -->
   <div class="modal-backdrop" id="modal-morning-report">
-    <div class="modal-dialog" style="max-width:960px">
-      <div class="modal-header" style="background:#172554;color:#fff">
-        <h4 style="color:#fff"><i class="fas fa-file-excel" style="color:#fde047"></i> DAILY MORNING REPORT ENTRY</h4>
+    <div class="modal-dialog" style="max-width:1060px;width:95vw">
+      <div class="modal-header" style="background:#0f172a;color:#fff;border-bottom:2px solid #3b82f6">
+        <h4 style="color:#fff;display:flex;align-items:center;gap:10px;font-size:16px;font-weight:800;letter-spacing:0.5px">
+          <i class="fas fa-file-excel" style="color:#fde047"></i> DAILY MORNING REPORT ENTRY
+        </h4>
         <button class="modal-close" style="color:#fff" onclick="closeModal('modal-morning-report')"><i class="fas fa-times"></i></button>
       </div>
-      <div class="modal-body" style="padding:16px 20px;max-height:85vh;overflow-y:auto">
+      <div class="modal-body" style="padding:20px 24px;background:#f8fafc">
         
         <!-- Instruction Banner -->
-        <div style="background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:8px 12px;font-size:12px;color:#854d0e;margin-bottom:14px;display:flex;align-items:center;gap:8px">
-          <i class="fas fa-info-circle"></i>
-          <span><b>Fill the yellow cells.</b> Manpower totals, machinery rentals, and site cost summary calculate automatically.</span>
+        <div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:10px 14px;font-size:12px;color:#854d0e;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <i class="fas fa-info-circle" style="color:#ca8a04;font-size:14px"></i>
+            <span><b>Fill the yellow cells.</b> Numbers calculate automatically across Manpower, Machinery Rent, and Site Cost Summary.</span>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" onclick="loadDefaultReportTemplate()">
+            <i class="fas fa-rotate-left"></i> Reset to Sample Form
+          </button>
         </div>
 
         <!-- 1. Header Information Block -->
-        <div class="excel-meta-grid" style="border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;margin-bottom:16px">
-          <div class="excel-meta-row">
-            <div class="excel-meta-label">Date <span class="required">*</span></div>
-            <div class="excel-meta-val">
+        <div class="report-header-card">
+          <div class="form-row-3">
+            <div class="form-group">
+              <label class="form-label-clean">Date <span class="required">*</span></label>
               <input type="date" id="report-date-input" class="form-control excel-input-yellow" required/>
             </div>
-          </div>
-          <div class="excel-meta-row">
-            <div class="excel-meta-label">Site Name <span class="required">*</span></div>
-            <div class="excel-meta-val">
+            <div class="form-group">
+              <label class="form-label-clean">Site Name <span class="required">*</span></label>
               <select id="report-site-input" class="form-control excel-input-yellow" required></select>
             </div>
-          </div>
-          <div class="excel-meta-row">
-            <div class="excel-meta-label">Site Status</div>
-            <div class="excel-meta-val">
+            <div class="form-group">
+              <label class="form-label-clean">Site Status</label>
               <select id="report-status-input" class="form-control excel-input-yellow">
                 <option value="Running">Running</option>
                 <option value="On Hold">On Hold</option>
@@ -586,44 +589,45 @@
               </select>
             </div>
           </div>
-          <div class="excel-meta-row">
-            <div class="excel-meta-label">Reported By (Name + Desig.) <span class="required">*</span></div>
-            <div class="excel-meta-val">
+          <div class="form-row-2" style="margin-top:12px">
+            <div class="form-group">
+              <label class="form-label-clean">Reported By (Name + Designation) <span class="required">*</span></label>
               <input type="text" id="report-reported-by-input" class="form-control excel-input-yellow" placeholder="e.g. Ramesh - Supervisor" required/>
             </div>
-          </div>
-          <div class="excel-meta-row" style="grid-column: span 2;border-bottom:none">
-            <div class="excel-meta-label">Company Employee(s) on Site</div>
-            <div class="excel-meta-val">
-              <input type="text" id="report-employees-on-site-input" class="form-control excel-input-yellow" placeholder="e.g. Mahesh, Suresh"/>
+            <div class="form-group">
+              <label class="form-label-clean">Company Employee(s) on Site</label>
+              <input type="text" id="report-employees-on-site-input" class="form-control excel-input-yellow" placeholder="e.g. Mahesh"/>
             </div>
           </div>
         </div>
 
         <!-- 2. MANPOWER Section -->
-        <div style="border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;margin-bottom:16px">
-          <div class="excel-section-header">
-            <span><i class="fas fa-users"></i> MANPOWER</span>
-            <div style="display:flex;gap:6px">
-              <button type="button" class="btn btn-sm" style="background:#3b82f6;color:#fff" onclick="openModal('modal-add-labour-type')" title="Add New Labour Type">
-                <i class="fas fa-tags"></i> + Labour Type
+        <div class="report-section-card">
+          <div class="report-section-header">
+            <div class="section-title">
+              <i class="fas fa-users-gear" style="color:#2563eb"></i>
+              <span>MANPOWER &amp; LABOUR DEPLOYMENT</span>
+            </div>
+            <div class="section-actions">
+              <button type="button" class="btn btn-outline btn-sm" onclick="openModal('modal-add-labour-type')" title="Add New Labour Type to dropdown">
+                <i class="fas fa-tag"></i> + Labour Type
               </button>
-              <button type="button" class="btn btn-sm" style="background:#22c55e;color:#fff" onclick="addLabourRow()">
-                <i class="fas fa-plus"></i> + Add Labour Row
+              <button type="button" class="btn btn-primary btn-sm" onclick="addLabourRow()">
+                <i class="fas fa-plus"></i> + Add Worker Row
               </button>
             </div>
           </div>
           <div class="table-responsive">
-            <table class="excel-data-table">
+            <table class="modern-excel-table">
               <thead>
                 <tr>
                   <th style="width:160px">Category</th>
                   <th style="width:130px">Type</th>
-                  <th>Details</th>
-                  <th style="width:90px;text-align:right">Number</th>
-                  <th style="width:110px;text-align:right">Rate per Head</th>
-                  <th style="width:110px;text-align:right">Total (₹)</th>
-                  <th style="width:40px;text-align:center">Del</th>
+                  <th>Details / Trade</th>
+                  <th style="width:85px;text-align:right">Number</th>
+                  <th style="width:115px;text-align:right">Rate per Head</th>
+                  <th style="width:115px;text-align:right">Total (₹)</th>
+                  <th style="width:45px;text-align:center">Del</th>
                 </tr>
               </thead>
               <tbody id="manpower-rows-container">
@@ -631,10 +635,10 @@
               </tbody>
               <tfoot>
                 <tr class="excel-total-row">
-                  <td colspan="3" style="text-align:left">Total Manpower</td>
-                  <td id="manpower-live-count" style="text-align:right;color:#1e3a8a;font-size:14px">0</td>
-                  <td></td>
-                  <td id="manpower-live-wages" style="text-align:right;color:#1e3a8a;font-size:15px">0</td>
+                  <td colspan="3" style="font-weight:700">Total Manpower</td>
+                  <td id="manpower-live-count" style="text-align:right;font-weight:800;color:#1e3a8a;font-size:14px">0</td>
+                  <td style="text-align:right;color:var(--text-muted);font-size:12px">Wages Total:</td>
+                  <td id="manpower-live-wages" style="text-align:right;font-weight:800;color:#1e3a8a;font-size:15px">₹0</td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -643,24 +647,29 @@
         </div>
 
         <!-- 3. MACHINERY AT SITE Section -->
-        <div style="border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;margin-bottom:16px">
-          <div class="excel-section-header">
-            <span><i class="fas fa-truck-monster"></i> MACHINERY AT SITE</span>
-            <button type="button" class="btn btn-sm" style="background:#22c55e;color:#fff" onclick="addMorningReportMachineRow()">
-              <i class="fas fa-plus"></i> + Add Machine Row
-            </button>
+        <div class="report-section-card">
+          <div class="report-section-header">
+            <div class="section-title">
+              <i class="fas fa-truck-monster" style="color:#0ea5e9"></i>
+              <span>MACHINERY AT SITE</span>
+            </div>
+            <div class="section-actions">
+              <button type="button" class="btn btn-primary btn-sm" onclick="addMorningReportMachineRow()">
+                <i class="fas fa-plus"></i> + Add Machine Row
+              </button>
+            </div>
           </div>
           <div class="table-responsive">
-            <table class="excel-data-table">
+            <table class="modern-excel-table">
               <thead>
                 <tr>
-                  <th style="width:180px">Machine</th>
+                  <th style="width:180px">Machine Name</th>
                   <th style="width:120px">Ownership</th>
-                  <th>Remarks</th>
+                  <th>Remarks / Usage</th>
                   <th style="width:80px;text-align:right">Qty</th>
-                  <th style="width:120px;text-align:right">Rent per Day</th>
-                  <th style="width:110px;text-align:right">Total (₹)</th>
-                  <th style="width:40px;text-align:center">Del</th>
+                  <th style="width:120px;text-align:right">Rent / Day (₹)</th>
+                  <th style="width:115px;text-align:right">Total (₹)</th>
+                  <th style="width:45px;text-align:center">Del</th>
                 </tr>
               </thead>
               <tbody id="machinery-rows-container">
@@ -668,8 +677,8 @@
               </tbody>
               <tfoot>
                 <tr class="excel-total-row">
-                  <td colspan="5" style="text-align:left">Total Machinery on Rent</td>
-                  <td id="machinery-live-rent-total" style="text-align:right;color:#1e3a8a;font-size:15px">0</td>
+                  <td colspan="5" style="font-weight:700">Total Machinery on Rent (Own Machine = ₹0)</td>
+                  <td id="machinery-live-rent-total" style="text-align:right;font-weight:800;color:#1e3a8a;font-size:15px">₹0</td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -678,55 +687,61 @@
         </div>
 
         <!-- 4. SITE COST SUMMARY (TODAY) -->
-        <div style="border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;margin-bottom:16px">
-          <div class="excel-section-header">
-            <span><i class="fas fa-calculator"></i> SITE COST SUMMARY (TODAY)</span>
+        <div class="report-section-card">
+          <div class="report-section-header" style="background:#f1f5f9;border-bottom:1px solid #e2e8f0;color:#0f172a">
+            <div class="section-title">
+              <i class="fas fa-calculator" style="color:#6366f1"></i>
+              <span style="color:#0f172a">SITE COST SUMMARY (TODAY)</span>
+            </div>
+            <small style="color:var(--text-muted);font-weight:600">Calculates automatically from Manpower + Machinery Rent + Employee Cost</small>
           </div>
-          <table class="excel-summary-table">
+          <table class="modern-summary-table">
             <tbody>
               <tr>
-                <td class="sum-label">Manpower Cost</td>
-                <td class="sum-val" id="summary-manpower-cost">0</td>
+                <td class="sum-label"><i class="fas fa-users" style="color:#3b82f6;width:20px"></i> Manpower Cost</td>
+                <td class="sum-val" id="summary-manpower-cost">₹0</td>
               </tr>
               <tr>
-                <td class="sum-label">Machinery on Rent</td>
-                <td class="sum-val" id="summary-machinery-cost">0</td>
+                <td class="sum-label"><i class="fas fa-truck-monster" style="color:#0ea5e9;width:20px"></i> Machinery on Rent</td>
+                <td class="sum-val" id="summary-machinery-cost">₹0</td>
               </tr>
               <tr>
-                <td class="sum-label" style="display:flex;justify-content:space-between;align-items:center">
-                  <span>Company Employee Cost (from 'Employee Site Visits')</span>
-                  <small style="color:var(--text-muted);font-weight:normal">Yellow cell (editable)</small>
+                <td class="sum-label">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span><i class="fas fa-user-tie" style="color:#10b981;width:20px"></i> Company Employee Cost (from 'Employee Site Visits')</span>
+                    <span class="badge badge-warning" style="font-size:10px">Yellow cell (editable)</span>
+                  </div>
                 </td>
                 <td class="sum-val">
                   <input type="number" id="summary-employee-cost-input" class="form-control excel-input-yellow" style="width:140px;margin-left:auto;text-align:right;font-weight:700" value="1400" min="0" oninput="recalcSiteCostSummary()"/>
                 </td>
               </tr>
               <tr class="sum-total-row">
-                <td class="sum-label" style="font-size:15px;font-weight:800">Total Site Cost</td>
-                <td class="sum-val" id="summary-total-site-cost" style="font-size:17px;font-weight:800;color:#1e3a8a">0</td>
+                <td class="sum-label" style="font-size:15px;font-weight:800;color:#166534">
+                  <i class="fas fa-wallet" style="color:#166534;width:20px"></i> Total Site Cost (Today)
+                </td>
+                <td class="sum-val" id="summary-total-site-cost" style="font-size:19px;font-weight:900;color:#166534">₹0</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <!-- 5. Work Today & Remarks -->
-        <div class="excel-meta-grid" style="border:1px solid #cbd5e1;border-radius:6px;overflow:hidden">
-          <div class="excel-meta-row" style="grid-column: span 2">
-            <div class="excel-meta-label">Work Today <span class="required">*</span></div>
-            <div class="excel-meta-val">
-              <input type="text" id="report-work-input" class="form-control excel-input-yellow" placeholder="e.g. 2nd floor slab shuttering" required/>
+        <div class="report-section-card" style="padding:16px 18px">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label-clean">Work Done Today <span class="required">*</span></label>
+              <textarea id="report-work-input" rows="2" class="form-control excel-input-yellow" placeholder="e.g. 2nd floor slab shuttering" required style="resize:vertical"></textarea>
             </div>
-          </div>
-          <div class="excel-meta-row" style="grid-column: span 2;border-bottom:none">
-            <div class="excel-meta-label">Remarks</div>
-            <div class="excel-meta-val">
-              <input type="text" id="report-remarks-input" class="form-control excel-input-yellow" placeholder="e.g. Cement needed tomorrow"/>
+            <div class="form-group">
+              <label class="form-label-clean">Remarks / Tomorrow Requirements</label>
+              <textarea id="report-remarks-input" rows="2" class="form-control excel-input-yellow" placeholder="e.g. Cement needed tomorrow" style="resize:vertical"></textarea>
             </div>
           </div>
         </div>
 
       </div>
-      <div class="modal-footer" style="background:#f8fafc">
+      <div class="modal-footer" style="background:#ffffff">
         <button class="btn btn-secondary" onclick="closeModal('modal-morning-report')">Cancel</button>
         <button class="btn btn-primary" onclick="saveMorningReport()"><i class="fas fa-check"></i> Save Daily Morning Report &amp; Post Cost</button>
       </div>
@@ -735,9 +750,11 @@
 
   <!-- Modal: View & Print Daily Morning Report Sheet (Exact Excel Layout) -->
   <div class="modal-backdrop" id="modal-view-report-sheet">
-    <div class="modal-dialog" style="max-width:960px">
-      <div class="modal-header" style="background:#172554;color:#fff">
-        <h4 style="color:#fff"><i class="fas fa-file-invoice"></i> DAILY MORNING REPORT SHEET</h4>
+    <div class="modal-dialog" style="max-width:1040px;width:95vw">
+      <div class="modal-header" style="background:#0f172a;color:#fff;border-bottom:2px solid #3b82f6">
+        <h4 style="color:#fff;display:flex;align-items:center;gap:10px;font-size:16px;font-weight:800;letter-spacing:0.5px">
+          <i class="fas fa-file-invoice" style="color:#38bdf8"></i> DAILY MORNING REPORT SHEET
+        </h4>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-sm" style="background:#2563eb;color:#fff" onclick="printReportSheetModal()">
             <i class="fas fa-print"></i> Print Sheet
@@ -745,7 +762,7 @@
           <button class="modal-close" style="color:#fff" onclick="closeModal('modal-view-report-sheet')"><i class="fas fa-times"></i></button>
         </div>
       </div>
-      <div class="modal-body" id="report-sheet-modal-content" style="padding:20px;max-height:85vh;overflow-y:auto">
+      <div class="modal-body" id="report-sheet-modal-content" style="padding:20px 24px;background:#f8fafc">
         <!-- Rendered dynamically -->
       </div>
     </div>

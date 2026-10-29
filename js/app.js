@@ -930,21 +930,29 @@ async function renderAuditTrailTable() {
 // ==========================================================================
 
 let labourTypes = JSON.parse(localStorage.getItem('siteOps_labourTypes')) || [
-  'Chowk', 'Permanent', 'Contractor', 'Daily Wage', 'Overtime (OT)', 'Piece Rate', 'Supply Labour'
+  'Permanent', 'Chowk', 'Contractor', 'Other', '-', 'Daily Wage', 'Overtime (OT)', 'Piece Rate', 'Supply Labour'
 ];
 
 const workerCategories = [
-  'Mason', 'General Labour', 'Helper / Beldar', 'Painter',
-  'Structural Welder', 'Electrician', 'Carpenter', 'Security Guard',
-  'Plumber', 'Specialist Contractor'
+  'Labour', 'Mason', 'Painter', 'Other Contractor',
+  'General Labour', 'Helper / Beldar', 'Structural Welder',
+  'Electrician', 'Carpenter', 'Security Guard', 'Plumber'
 ];
 
 function getLabourTypeOptionsHtml(selectedType = '') {
-  return labourTypes.map(t => `<option value="${escapeHtml(t)}" ${t === selectedType ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+  let list = [...labourTypes];
+  if (selectedType && !list.includes(selectedType)) {
+    list.unshift(selectedType);
+  }
+  return list.map(t => `<option value="${escapeHtml(t)}" ${t === selectedType ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
 }
 
 function getCategoryOptionsHtml(selectedCat = '') {
-  return workerCategories.map(c => `<option value="${escapeHtml(c)}" ${c === selectedCat ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+  let list = [...workerCategories];
+  if (selectedCat && !list.includes(selectedCat)) {
+    list.unshift(selectedCat);
+  }
+  return list.map(c => `<option value="${escapeHtml(c)}" ${c === selectedCat ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
 }
 
 function saveNewLabourType() {
@@ -1010,11 +1018,11 @@ function addLabourRow(data = null) {
       <input type="number" class="form-control row-labour-rate-input excel-input-yellow" style="text-align:right" value="${rate}" min="0" placeholder="0" oninput="recalcLabourRow('${rowId}')"/>
     </td>
     <td style="text-align:right;font-weight:700;color:#1e3a8a">
-      <span class="row-labour-total-display">${total > 0 ? total.toLocaleString('en-US') : '-'}</span>
+      <span class="row-labour-total-display">₹${total > 0 ? total.toLocaleString('en-US') : '0'}</span>
     </td>
     <td style="text-align:center">
-      <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;padding:4px 8px;border-radius:4px;border:none;cursor:pointer" onclick="removeLabourRow('${rowId}')" title="Delete Row">
-        <i class="fas fa-trash"></i>
+      <button type="button" class="btn-table-delete" onclick="removeLabourRow('${rowId}')" title="Delete Row">
+        <i class="fas fa-trash-alt"></i>
       </button>
     </td>
   `;
@@ -1117,11 +1125,11 @@ function addMorningReportMachineRow(data = null) {
       <input type="number" class="form-control row-mach-rent-input excel-input-yellow" style="text-align:right" value="${ownership === 'Own' ? '' : rent}" min="0" placeholder="0" oninput="recalcMorningReportMachineRow('${mRowId}')" ${ownership === 'Own' ? 'disabled style="background:#f1f5f9;opacity:0.6"' : ''}/>
     </td>
     <td style="text-align:right;font-weight:700;color:#1e3a8a">
-      <span class="row-mach-total-display">${total > 0 ? total.toLocaleString('en-US') : '-'}</span>
+      <span class="row-mach-total-display">₹${total > 0 ? total.toLocaleString('en-US') : '0'}</span>
     </td>
     <td style="text-align:center">
-      <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;padding:4px 8px;border-radius:4px;border:none;cursor:pointer" onclick="removeMorningReportMachineRow('${mRowId}')" title="Delete Row">
-        <i class="fas fa-trash"></i>
+      <button type="button" class="btn-table-delete" onclick="removeMorningReportMachineRow('${mRowId}')" title="Delete Row">
+        <i class="fas fa-trash-alt"></i>
       </button>
     </td>
   `;
@@ -1212,6 +1220,49 @@ function recalcSiteCostSummary() {
 }
 
 // -------------------------------------------------------------
+// LOAD DEFAULT EXCEL MORNING REPORT TEMPLATE
+// -------------------------------------------------------------
+function loadDefaultReportTemplate(force = true) {
+  const manpowerContainer = document.getElementById('manpower-rows-container');
+  const machContainer = document.getElementById('machinery-rows-container');
+
+  if (manpowerContainer && (force || manpowerContainer.children.length === 0)) {
+    manpowerContainer.innerHTML = '';
+    addLabourRow({ category: 'Labour', type: 'Permanent', details: '', count: 5, rate: 600 });
+    addLabourRow({ category: 'Labour', type: 'Chowk', details: '', count: 3, rate: 500 });
+    addLabourRow({ category: 'Labour', type: 'Contractor', details: '', count: 10, rate: 550 });
+    addLabourRow({ category: 'Mason', type: 'Permanent', details: '', count: 2, rate: 900 });
+    addLabourRow({ category: 'Mason', type: 'Chowk', details: '', count: 1, rate: 800 });
+    addLabourRow({ category: 'Mason', type: 'Contractor', details: '', count: 2, rate: 850 });
+    addLabourRow({ category: 'Painter', type: '-', details: '', count: 2, rate: 700 });
+    addLabourRow({ category: 'Other Contractor', type: 'Other', details: 'Electrician', count: 1, rate: 1000 });
+  }
+
+  if (machContainer && (force || machContainer.children.length === 0)) {
+    machContainer.innerHTML = '';
+    addMorningReportMachineRow({ machine: 'JCB', ownership: 'On Rent', remarks: '', qty: 1, rent: 4500 });
+    addMorningReportMachineRow({ machine: 'Concrete Mixer', ownership: 'Own', remarks: '', qty: 1, rent: 0 });
+  }
+
+  const repByInput = document.getElementById('report-reported-by-input');
+  if (repByInput && (force || !repByInput.value)) repByInput.value = 'Ramesh - Supervisor';
+
+  const empInput = document.getElementById('report-employees-on-site-input');
+  if (empInput && (force || !empInput.value)) empInput.value = 'Mahesh';
+
+  const workInput = document.getElementById('report-work-input');
+  if (workInput && (force || !workInput.value)) workInput.value = '2nd floor slab shuttering';
+
+  const remarksInput = document.getElementById('report-remarks-input');
+  if (remarksInput && (force || !remarksInput.value)) remarksInput.value = 'Cement needed tomorrow';
+
+  const empCostInput = document.getElementById('summary-employee-cost-input');
+  if (empCostInput && (force || !empCostInput.value)) empCostInput.value = '1400';
+
+  recalcSiteCostSummary();
+}
+
+// -------------------------------------------------------------
 // MODAL HOOK: PRELOAD EXACT EXCEL WORKBOOK STRUCTURE
 // -------------------------------------------------------------
 function openModal(modalId) {
@@ -1220,41 +1271,7 @@ function openModal(modalId) {
 
   // Pre-load the exact Excel structure if opening Daily Morning Report
   if (modalId === 'modal-morning-report') {
-    const manpowerContainer = document.getElementById('manpower-rows-container');
-    const machContainer = document.getElementById('machinery-rows-container');
-
-    if (manpowerContainer && manpowerContainer.children.length === 0) {
-      // 8 Standard Rows from user's Excel sheet
-      addLabourRow({ category: 'Labour', type: 'Permanent', details: '', count: 5, rate: 600 });
-      addLabourRow({ category: 'Labour', type: 'Chowk', details: '', count: 3, rate: 500 });
-      addLabourRow({ category: 'Labour', type: 'Contractor', details: '', count: 10, rate: 550 });
-      addLabourRow({ category: 'Mason', type: 'Permanent', details: '', count: 2, rate: 900 });
-      addLabourRow({ category: 'Mason', type: 'Chowk', details: '', count: 1, rate: 800 });
-      addLabourRow({ category: 'Mason', type: 'Contractor', details: '', count: 2, rate: 850 });
-      addLabourRow({ category: 'Painter', type: '-', details: '', count: 2, rate: 700 });
-      addLabourRow({ category: 'Other Contractor', type: 'Other', details: 'Electrician', count: 1, rate: 1000 });
-    }
-
-    if (machContainer && machContainer.children.length === 0) {
-      // 2 Standard Machinery Rows from user's Excel sheet
-      addMorningReportMachineRow({ machine: 'JCB', ownership: 'On Rent', remarks: '', qty: 1, rent: 4500 });
-      addMorningReportMachineRow({ machine: 'Concrete Mixer', ownership: 'Own', remarks: '', qty: 1, rent: 0 });
-    }
-
-    // Set default headers if empty
-    const repByInput = document.getElementById('report-reported-by-input');
-    if (repByInput && !repByInput.value) repByInput.value = 'Ramesh - Supervisor';
-
-    const empInput = document.getElementById('report-employees-on-site-input');
-    if (empInput && !empInput.value) empInput.value = 'Mahesh';
-
-    const workInput = document.getElementById('report-work-input');
-    if (workInput && !workInput.value) workInput.value = '2nd floor slab shuttering';
-
-    const remarksInput = document.getElementById('report-remarks-input');
-    if (remarksInput && !remarksInput.value) remarksInput.value = 'Cement needed tomorrow';
-
-    recalcSiteCostSummary();
+    loadDefaultReportTemplate(false);
   }
 }
 
@@ -1465,15 +1482,15 @@ async function viewReportSheet(reportId) {
 
       <!-- MANPOWER -->
       <div class="excel-section-header">
-        <span>MANPOWER</span>
-        <span>Total Headcount: ${r.totalManpowerCount || manpower.reduce((a, b) => a + b.count, 0)}</span>
+        <span><i class="fas fa-users-gear"></i> MANPOWER DEPLOYMENT</span>
+        <span>Total Headcount: <b>${r.totalManpowerCount || manpower.reduce((a, b) => a + b.count, 0)} Workers</b></span>
       </div>
-      <table class="excel-data-table">
+      <table class="modern-excel-table">
         <thead>
           <tr>
             <th style="width:20%">Category</th>
             <th style="width:20%">Type</th>
-            <th style="width:20%">Details</th>
+            <th style="width:20%">Details / Trade</th>
             <th style="width:12%;text-align:right">Number</th>
             <th style="width:14%;text-align:right">Rate per Head</th>
             <th style="width:14%;text-align:right">Total (₹)</th>
@@ -1482,12 +1499,12 @@ async function viewReportSheet(reportId) {
         <tbody>
           ${manpower.map(m => `
             <tr>
-              <td>${escapeHtml(m.category)}</td>
-              <td>${escapeHtml(m.type || '-')}</td>
-              <td>${escapeHtml(m.details || '')}</td>
-              <td style="text-align:right;color:#1e3a8a;font-weight:700">${m.count}</td>
-              <td style="text-align:right;color:#1e3a8a;font-weight:700">₹${parseFloat(m.rate).toLocaleString('en-US')}</td>
-              <td style="text-align:right;font-weight:700">₹${(parseFloat(m.total) || (m.count * m.rate)).toLocaleString('en-US')}</td>
+              <td><strong>${escapeHtml(m.category)}</strong></td>
+              <td><span class="badge ${m.type === 'Permanent' ? 'badge-company' : 'badge-self'}">${escapeHtml(m.type || '-')}</span></td>
+              <td>${escapeHtml(m.details || '-')}</td>
+              <td style="text-align:right;color:#0f172a;font-weight:700">${m.count}</td>
+              <td style="text-align:right;color:#0f172a;font-weight:700">₹${parseFloat(m.rate).toLocaleString('en-US')}</td>
+              <td style="text-align:right;font-weight:800;color:#1e3a8a">₹${(parseFloat(m.total) || (m.count * m.rate)).toLocaleString('en-US')}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -1495,25 +1512,25 @@ async function viewReportSheet(reportId) {
           <tr class="excel-total-row">
             <td colspan="3" style="text-align:left">Total Manpower</td>
             <td style="text-align:right;color:#1e3a8a;font-size:14px">${r.totalManpowerCount || manpower.reduce((a, b) => a + b.count, 0)}</td>
-            <td></td>
+            <td style="text-align:right;font-size:12px;color:var(--text-muted)">Total Manpower Wages:</td>
             <td style="text-align:right;color:#1e3a8a;font-size:15px">₹${(parseFloat(r.totalManpowerCost) || 0).toLocaleString('en-US')}</td>
           </tr>
         </tfoot>
       </table>
 
       <!-- MACHINERY AT SITE -->
-      <div class="excel-section-header" style="margin-top:12px">
-        <span>MACHINERY AT SITE</span>
+      <div class="excel-section-header" style="margin-top:14px">
+        <span><i class="fas fa-truck-monster"></i> MACHINERY AT SITE</span>
       </div>
-      <table class="excel-data-table">
+      <table class="modern-excel-table">
         <thead>
           <tr>
-            <th style="width:25%">Machine</th>
-            <th style="width:20%">Ownership</th>
-            <th style="width:25%">Remarks</th>
+            <th style="width:25%">Machine Name</th>
+            <th style="width:18%">Ownership</th>
+            <th style="width:25%">Remarks / Usage</th>
             <th style="width:10%;text-align:right">Qty</th>
-            <th style="width:10%;text-align:right">Rent per Day</th>
-            <th style="width:10%;text-align:right">Total (₹)</th>
+            <th style="width:11%;text-align:right">Rent per Day</th>
+            <th style="width:11%;text-align:right">Total (₹)</th>
           </tr>
         </thead>
         <tbody>
@@ -1521,10 +1538,10 @@ async function viewReportSheet(reportId) {
             <tr>
               <td><strong>${escapeHtml(m.machine)}</strong></td>
               <td><span class="badge ${m.ownership === 'Own' ? 'badge-company' : 'badge-self'}">${escapeHtml(m.ownership)}</span></td>
-              <td>${escapeHtml(m.remarks || '')}</td>
-              <td style="text-align:right;color:#1e3a8a;font-weight:700">${m.qty}</td>
-              <td style="text-align:right;color:#1e3a8a;font-weight:700">${m.ownership === 'Own' ? '-' : `₹${parseFloat(m.rent || 0).toLocaleString('en-US')}`}</td>
-              <td style="text-align:right;font-weight:700">${m.ownership === 'Own' ? '-' : `₹${parseFloat(m.total || 0).toLocaleString('en-US')}`}</td>
+              <td>${escapeHtml(m.remarks || '-')}</td>
+              <td style="text-align:right;color:#0f172a;font-weight:700">${m.qty}</td>
+              <td style="text-align:right;color:#0f172a;font-weight:700">${m.ownership === 'Own' ? '-' : `₹${parseFloat(m.rent || 0).toLocaleString('en-US')}`}</td>
+              <td style="text-align:right;font-weight:800;color:#1e3a8a">${m.ownership === 'Own' ? '-' : `₹${parseFloat(m.total || 0).toLocaleString('en-US')}`}</td>
             </tr>
           `).join('') : `
             <tr><td colspan="6" style="text-align:center;padding:12px;color:var(--text-muted)">No machinery records on this day.</td></tr>
@@ -1532,33 +1549,35 @@ async function viewReportSheet(reportId) {
         </tbody>
         <tfoot>
           <tr class="excel-total-row">
-            <td colspan="5" style="text-align:left">Total Machinery on Rent</td>
+            <td colspan="5" style="text-align:left">Total Machinery on Rent (Own Machine = ₹0)</td>
             <td style="text-align:right;color:#1e3a8a;font-size:15px">₹${(parseFloat(r.totalMachineryOnRent) || 0).toLocaleString('en-US')}</td>
           </tr>
         </tfoot>
       </table>
 
       <!-- SITE COST SUMMARY (TODAY) -->
-      <div class="excel-section-header" style="margin-top:12px">
-        <span>SITE COST SUMMARY (TODAY)</span>
+      <div class="excel-section-header" style="margin-top:14px">
+        <span><i class="fas fa-calculator"></i> SITE COST SUMMARY (TODAY)</span>
       </div>
-      <table class="excel-summary-table">
+      <table class="modern-summary-table">
         <tbody>
           <tr>
-            <td class="sum-label">Manpower Cost</td>
+            <td class="sum-label"><i class="fas fa-users" style="color:#3b82f6;width:20px"></i> Manpower Cost</td>
             <td class="sum-val">₹${(parseFloat(r.totalManpowerCost) || 0).toLocaleString('en-US')}</td>
           </tr>
           <tr>
-            <td class="sum-label">Machinery on Rent</td>
+            <td class="sum-label"><i class="fas fa-truck-monster" style="color:#0ea5e9;width:20px"></i> Machinery on Rent</td>
             <td class="sum-val">₹${(parseFloat(r.totalMachineryOnRent) || 0).toLocaleString('en-US')}</td>
           </tr>
           <tr>
-            <td class="sum-label">Company Employee Cost (from 'Employee Site Visits')</td>
+            <td class="sum-label"><i class="fas fa-user-tie" style="color:#10b981;width:20px"></i> Company Employee Cost (from 'Employee Site Visits')</td>
             <td class="sum-val">₹${(parseFloat(r.employeeCost) || 0).toLocaleString('en-US')}</td>
           </tr>
           <tr class="sum-total-row">
-            <td class="sum-label" style="font-size:15px;font-weight:800">Total Site Cost</td>
-            <td class="sum-val" style="font-size:18px;font-weight:800;color:#1e3a8a">₹${totalCost.toLocaleString('en-US')}</td>
+            <td class="sum-label" style="font-size:15px;font-weight:800;color:#166534">
+              <i class="fas fa-wallet" style="color:#166534;width:20px"></i> Total Site Cost (Today)
+            </td>
+            <td class="sum-val" style="font-size:19px;font-weight:900;color:#166534">₹${totalCost.toLocaleString('en-US')}</td>
           </tr>
         </tbody>
       </table>
