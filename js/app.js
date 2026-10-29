@@ -891,9 +891,167 @@ async function renderAuditTrailTable() {
 // MODAL DIALOGS & DATA PERSISTENCE
 // ==========================================================================
 
+// ==========================================================================
+// DYNAMIC LABOUR & MANPOWER MANAGEMENT
+// ==========================================================================
+
+let labourTypes = JSON.parse(localStorage.getItem('siteOps_labourTypes')) || [
+  'Chowk', 'Permanent', 'Contractor', 'Daily Wage', 'Overtime (OT)', 'Piece Rate', 'Supply Labour'
+];
+
+const workerCategories = [
+  'Mason', 'General Labour', 'Helper / Beldar', 'Painter',
+  'Structural Welder', 'Electrician', 'Carpenter', 'Security Guard',
+  'Plumber', 'Specialist Contractor'
+];
+
+function getLabourTypeOptionsHtml(selectedType = '') {
+  return labourTypes.map(t => `<option value="${escapeHtml(t)}" ${t === selectedType ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+}
+
+function getCategoryOptionsHtml(selectedCat = '') {
+  return workerCategories.map(c => `<option value="${escapeHtml(c)}" ${c === selectedCat ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+}
+
+function saveNewLabourType() {
+  const input = document.getElementById('new-labour-type-name');
+  const typeName = (input?.value || '').trim();
+  if (!typeName) {
+    showToast('Please enter a Labour Type name', 'error');
+    return;
+  }
+  if (!labourTypes.includes(typeName)) {
+    labourTypes.push(typeName);
+    localStorage.setItem('siteOps_labourTypes', JSON.stringify(labourTypes));
+  }
+  // Refresh all current Labour Type dropdowns
+  document.querySelectorAll('.row-labour-type-select').forEach(sel => {
+    const curr = sel.value;
+    sel.innerHTML = getLabourTypeOptionsHtml(curr);
+  });
+  input.value = '';
+  closeModal('modal-add-labour-type');
+  showToast(`Labour Type "${typeName}" added to dropdown!`, 'success');
+}
+
+let labourRowIdCounter = 0;
+
+function addLabourRow(data = null) {
+  const container = document.getElementById('manpower-rows-container');
+  if (!container) return;
+
+  const rowId = `labour-row-${++labourRowIdCounter}`;
+  const cat = data?.category || 'General Labour';
+  const type = data?.type || 'Chowk';
+  const details = data?.details || '';
+  const count = data?.count !== undefined ? data.count : 1;
+  const rate = data?.rate !== undefined ? data.rate : (cat === 'Mason' ? 850 : 550);
+  const total = count * rate;
+
+  const row = document.createElement('div');
+  row.className = 'manpower-row-item';
+  row.id = rowId;
+  row.innerHTML = `
+    <div class="field-unit">
+      <label>Category</label>
+      <select class="form-control row-labour-cat-select" onchange="onLabourCatChange('${rowId}')">
+        ${getCategoryOptionsHtml(cat)}
+      </select>
+    </div>
+    <div class="field-unit">
+      <label>Labour Type</label>
+      <select class="form-control row-labour-type-select">
+        ${getLabourTypeOptionsHtml(type)}
+      </select>
+    </div>
+    <div class="field-unit">
+      <label>Labour Details / Skill</label>
+      <input type="text" class="form-control row-labour-details-input" placeholder="e.g. Tiles Mason, Soak Pit, Trench" value="${escapeHtml(details)}"/>
+    </div>
+    <div class="field-unit">
+      <label>Headcount (Nos)</label>
+      <input type="number" class="form-control row-labour-count-input" value="${count}" min="1" oninput="recalcLabourRow('${rowId}')"/>
+    </div>
+    <div class="field-unit">
+      <label>Rate per Head (₹)</label>
+      <input type="number" class="form-control row-labour-rate-input" value="${rate}" min="0" placeholder="0" oninput="recalcLabourRow('${rowId}')"/>
+    </div>
+    <div class="field-unit">
+      <label>Total Wage</label>
+      <div class="manpower-row-total row-labour-total-display">₹${total.toLocaleString('en-US')}</div>
+    </div>
+    <button type="button" class="btn-delete-row" onclick="removeLabourRow('${rowId}')" title="Remove Worker Line">
+      <i class="fas fa-trash"></i>
+    </button>
+  `;
+
+  container.appendChild(row);
+  recalcManpowerTotals();
+}
+
+function onLabourCatChange(rowId) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  const cat = row.querySelector('.row-labour-cat-select')?.value;
+  const rateInput = row.querySelector('.row-labour-rate-input');
+  if (rateInput && (!rateInput.value || rateInput.value === '0' || rateInput.value === '850' || rateInput.value === '550')) {
+    if (cat === 'Mason') rateInput.value = 850;
+    else if (cat === 'General Labour' || cat === 'Helper / Beldar') rateInput.value = 550;
+    else if (cat === 'Painter') rateInput.value = 800;
+    else if (cat === 'Structural Welder') rateInput.value = 1000;
+    else if (cat === 'Electrician') rateInput.value = 950;
+    else rateInput.value = 700;
+  }
+  recalcLabourRow(rowId);
+}
+
+function recalcLabourRow(rowId) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  const count = parseInt(row.querySelector('.row-labour-count-input')?.value) || 0;
+  const rate = parseFloat(row.querySelector('.row-labour-rate-input')?.value) || 0;
+  const total = count * rate;
+  const display = row.querySelector('.row-labour-total-display');
+  if (display) display.textContent = `₹${total.toLocaleString('en-US')}`;
+  recalcManpowerTotals();
+}
+
+function removeLabourRow(rowId) {
+  const row = document.getElementById(rowId);
+  if (row) row.remove();
+  recalcManpowerTotals();
+}
+
+function recalcManpowerTotals() {
+  const rows = document.querySelectorAll('.manpower-row-item');
+  let totalCount = 0;
+  let totalCost = 0;
+
+  rows.forEach(r => {
+    const c = parseInt(r.querySelector('.row-labour-count-input')?.value) || 0;
+    const rate = parseFloat(r.querySelector('.row-labour-rate-input')?.value) || 0;
+    totalCount += c;
+    totalCost += (c * rate);
+  });
+
+  const countDisplay = document.getElementById('manpower-live-count');
+  const wagesDisplay = document.getElementById('manpower-live-wages');
+  if (countDisplay) countDisplay.textContent = totalCount;
+  if (wagesDisplay) wagesDisplay.textContent = `₹${totalCost.toLocaleString('en-US')}`;
+}
+
 function openModal(modalId) {
   const el = document.getElementById(modalId);
   if (el) el.classList.add('active');
+
+  // If opening morning report modal and no labour rows exist, add initial rows
+  if (modalId === 'modal-morning-report') {
+    const container = document.getElementById('manpower-rows-container');
+    if (container && container.children.length === 0) {
+      addLabourRow({ category: 'Mason', type: 'Chowk', details: 'Brickwork / Plaster', count: 1, rate: 850 });
+      addLabourRow({ category: 'General Labour', type: 'Chowk', details: 'Helper / Beldar', count: 2, rate: 550 });
+    }
+  }
 }
 
 function closeModal(modalId) {
@@ -950,30 +1108,32 @@ async function saveMorningReport() {
   const work = document.getElementById('report-work-input').value.trim();
   const remarks = document.getElementById('report-remarks-input').value.trim();
 
-  // Manpower rows
-  const masonCount = parseInt(document.getElementById('rep-mason-count').value) || 0;
-  const masonRate = parseFloat(document.getElementById('rep-mason-rate').value) || 0;
-
-  const labourCount = parseInt(document.getElementById('rep-labour-count').value) || 0;
-  const labourRate = parseFloat(document.getElementById('rep-labour-rate').value) || 0;
-
-  const painterCount = parseInt(document.getElementById('rep-painter-count').value) || 0;
-  const painterRate = parseFloat(document.getElementById('rep-painter-rate').value) || 0;
-
-  const contractorCount = parseInt(document.getElementById('rep-contractor-count').value) || 0;
-  const contractorRate = parseFloat(document.getElementById('rep-contractor-rate').value) || 0;
-  const contractorDetail = document.getElementById('rep-contractor-detail').value.trim();
-
   if (!date || !site || !sup) {
     showToast('Please specify Date, Work Site and Supervisor', 'error');
     return;
   }
 
+  // Extract all dynamic Labour rows
+  const rows = document.querySelectorAll('.manpower-row-item');
   const manpower = [];
-  if (masonCount > 0) manpower.push({ category: 'Mason', type: 'Chowk', count: masonCount, rate: masonRate, total: masonCount * masonRate });
-  if (labourCount > 0) manpower.push({ category: 'Labour', type: 'Chowk', count: labourCount, rate: labourRate, total: labourCount * labourRate });
-  if (painterCount > 0) manpower.push({ category: 'Painter', type: 'Contractor', count: painterCount, rate: painterRate, total: painterCount * painterRate });
-  if (contractorCount > 0) manpower.push({ category: 'Other Contractor', type: 'Contractor', count: contractorCount, rate: contractorRate, details: contractorDetail || 'Specialist Contractor', total: contractorCount * contractorRate });
+
+  rows.forEach(r => {
+    const category = r.querySelector('.row-labour-cat-select')?.value || 'General Labour';
+    const type = r.querySelector('.row-labour-type-select')?.value || 'Chowk';
+    const details = (r.querySelector('.row-labour-details-input')?.value || '').trim();
+    const count = parseInt(r.querySelector('.row-labour-count-input')?.value) || 0;
+    const rate = parseFloat(r.querySelector('.row-labour-rate-input')?.value) || 0;
+    const total = count * rate;
+
+    if (count > 0) {
+      manpower.push({ category, type, details, count, rate, total });
+    }
+  });
+
+  if (manpower.length === 0) {
+    showToast('Please add at least one labour deployment row with headcount > 0', 'error');
+    return;
+  }
 
   const totalCost = manpower.reduce((a, b) => a + b.total, 0);
   const totalCount = manpower.reduce((a, b) => a + b.count, 0);
