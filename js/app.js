@@ -72,9 +72,7 @@ async function logAudit(action, module, details) {
 // ==================== SEED DATABASE ====================
 async function initializeDatabaseWithSeedData() {
   const count = await db.sites.count();
-  if (count > 0) return;
-
-  if (typeof SEED_DATA !== 'undefined') {
+  if (count === 0 && typeof SEED_DATA !== 'undefined') {
     await db.sites.bulkAdd(SEED_DATA.sites.map(s => ({ ...s, createdBy: 'System Setup' })));
     await db.supervisors.bulkAdd(SEED_DATA.supervisors.map(s => ({ ...s, createdBy: 'System Setup' })));
     await db.reports.bulkAdd(SEED_DATA.reports.map(r => ({ ...r, createdBy: 'System Setup' })));
@@ -84,6 +82,34 @@ async function initializeDatabaseWithSeedData() {
     await db.expenses.bulkAdd(SEED_DATA.expenses.map(e => ({ ...e, createdBy: 'System Setup' })));
 
     await logAudit('Database Initialized', 'System', 'Pre-seeded initial records from Accounts SOP & Day Book');
+    return;
+  }
+
+  // Ensure Site A, supervisor Ramesh, and its Morning Report are present
+  if (typeof SEED_DATA !== 'undefined') {
+    const siteA = await db.sites.where('name').equals('Site A').first();
+    if (!siteA) {
+      const s = SEED_DATA.sites.find(item => item.name === 'Site A');
+      if (s) await db.sites.add({ ...s, createdBy: 'System Setup' });
+    }
+    const ramesh = await db.supervisors.where('name').equals('Ramesh').first();
+    if (!ramesh) {
+      const sup = SEED_DATA.supervisors.find(item => item.name === 'Ramesh');
+      if (sup) await db.supervisors.add({ ...sup, createdBy: 'System Setup' });
+    }
+    const siteAReport = await db.reports.where('siteName').equals('Site A').first();
+    if (!siteAReport) {
+      const rep = SEED_DATA.reports.find(item => item.siteName === 'Site A');
+      if (rep) await db.reports.add({ ...rep, createdBy: 'System Setup' });
+    }
+    // Also machinery for Site A if missing
+    const siteAMach = await db.machinery.where('siteName').equals('Site A').first();
+    if (!siteAMach) {
+      const machs = SEED_DATA.machinery.filter(item => item.siteName === 'Site A');
+      if (machs.length > 0) {
+        await db.machinery.bulkAdd(machs.map(m => ({ ...m, createdBy: 'System Setup' })));
+      }
+    }
   }
 }
 
@@ -362,7 +388,12 @@ function renderDrilldownManpower(reports) {
           <td><b>${escapeHtml(m.count)}</b> Nos</td>
           <td>₹${parseFloat(m.rate).toLocaleString('en-US')} / head</td>
           <td><strong>₹${(parseFloat(m.total) || (m.count * m.rate)).toLocaleString('en-US')}</strong></td>
-          ${isFirst ? `<td rowspan="${manpowerList.length}" style="max-width:280px;font-size:12px;color:var(--text-muted)">${escapeHtml(rep.workDescription || '-')}</td>` : ''}
+          ${isFirst ? `<td rowspan="${manpowerList.length}" style="max-width:280px;font-size:12px;color:var(--text-muted)">
+            <div>${escapeHtml(rep.workDescription || '-')}</div>
+            <button class="btn btn-secondary btn-sm" style="margin-top:6px;padding:3px 8px;font-size:11px" onclick="viewReportSheet(${rep.id})" title="View exact Daily Morning Report Sheet">
+              <i class="fas fa-file-excel" style="color:var(--success)"></i> View Morning Report
+            </button>
+          </td>` : ''}
         </tr>
       `;
     });
@@ -702,7 +733,10 @@ async function renderMorningReportsTable() {
         <td><span class="badge badge-info">${escapeHtml(r.totalManpowerCount || (r.manpower ? r.manpower.reduce((a, b) => a + b.count, 0) : 0))} Workers</span></td>
         <td><strong>₹${parseFloat(r.totalManpowerCost || 0).toLocaleString('en-US')}</strong></td>
         <td style="max-width:300px;font-size:12px">${escapeHtml(r.workDescription || '-')}</td>
-        <td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-primary btn-sm" onclick="viewReportSheet(${r.id})" title="View exact Daily Morning Report Excel Sheet" style="margin-right:4px">
+            <i class="fas fa-file-excel"></i> View Sheet
+          </button>
           <button class="btn btn-secondary btn-sm" onclick="drilldownFromReport('${escapeHtml(r.siteName)}', '${escapeHtml(r.supervisorName)}')">
             <i class="fas fa-folder-open"></i> Inspect
           </button>
@@ -935,57 +969,57 @@ function saveNewLabourType() {
 }
 
 let labourRowIdCounter = 0;
+let machRowIdCounter = 0;
 
+// -------------------------------------------------------------
+// DYNAMIC LABOUR ROWS (EXCEL DAILY MORNING REPORT STRUCTURE)
+// -------------------------------------------------------------
 function addLabourRow(data = null) {
   const container = document.getElementById('manpower-rows-container');
   if (!container) return;
 
   const rowId = `labour-row-${++labourRowIdCounter}`;
-  const cat = data?.category || 'General Labour';
-  const type = data?.type || 'Chowk';
+  const cat = data?.category || 'Labour';
+  const type = data?.type || 'Permanent';
   const details = data?.details || '';
-  const count = data?.count !== undefined ? data.count : 1;
-  const rate = data?.rate !== undefined ? data.rate : (cat === 'Mason' ? 850 : 550);
+  const count = data?.count !== undefined ? data.count : 5;
+  const rate = data?.rate !== undefined ? data.rate : 600;
   const total = count * rate;
 
-  const row = document.createElement('div');
-  row.className = 'manpower-row-item';
-  row.id = rowId;
-  row.innerHTML = `
-    <div class="field-unit">
-      <label>Category</label>
-      <select class="form-control row-labour-cat-select" onchange="onLabourCatChange('${rowId}')">
+  const tr = document.createElement('tr');
+  tr.className = 'excel-row-item';
+  tr.id = rowId;
+  tr.innerHTML = `
+    <td>
+      <select class="form-control row-labour-cat-select excel-input-yellow" onchange="onLabourCatChange('${rowId}')">
         ${getCategoryOptionsHtml(cat)}
       </select>
-    </div>
-    <div class="field-unit">
-      <label>Labour Type</label>
-      <select class="form-control row-labour-type-select">
+    </td>
+    <td>
+      <select class="form-control row-labour-type-select excel-input-yellow">
         ${getLabourTypeOptionsHtml(type)}
       </select>
-    </div>
-    <div class="field-unit">
-      <label>Labour Details / Skill</label>
-      <input type="text" class="form-control row-labour-details-input" placeholder="e.g. Tiles Mason, Soak Pit, Trench" value="${escapeHtml(details)}"/>
-    </div>
-    <div class="field-unit">
-      <label>Headcount (Nos)</label>
-      <input type="number" class="form-control row-labour-count-input" value="${count}" min="1" oninput="recalcLabourRow('${rowId}')"/>
-    </div>
-    <div class="field-unit">
-      <label>Rate per Head (₹)</label>
-      <input type="number" class="form-control row-labour-rate-input" value="${rate}" min="0" placeholder="0" oninput="recalcLabourRow('${rowId}')"/>
-    </div>
-    <div class="field-unit">
-      <label>Total Wage</label>
-      <div class="manpower-row-total row-labour-total-display">₹${total.toLocaleString('en-US')}</div>
-    </div>
-    <button type="button" class="btn-delete-row" onclick="removeLabourRow('${rowId}')" title="Remove Worker Line">
-      <i class="fas fa-trash"></i>
-    </button>
+    </td>
+    <td>
+      <input type="text" class="form-control row-labour-details-input excel-input-yellow" placeholder="e.g. Electrician, Tiles" value="${escapeHtml(details)}"/>
+    </td>
+    <td>
+      <input type="number" class="form-control row-labour-count-input excel-input-yellow" style="text-align:right" value="${count}" min="0" oninput="recalcLabourRow('${rowId}')"/>
+    </td>
+    <td>
+      <input type="number" class="form-control row-labour-rate-input excel-input-yellow" style="text-align:right" value="${rate}" min="0" placeholder="0" oninput="recalcLabourRow('${rowId}')"/>
+    </td>
+    <td style="text-align:right;font-weight:700;color:#1e3a8a">
+      <span class="row-labour-total-display">${total > 0 ? total.toLocaleString('en-US') : '-'}</span>
+    </td>
+    <td style="text-align:center">
+      <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;padding:4px 8px;border-radius:4px;border:none;cursor:pointer" onclick="removeLabourRow('${rowId}')" title="Delete Row">
+        <i class="fas fa-trash"></i>
+      </button>
+    </td>
   `;
 
-  container.appendChild(row);
+  container.appendChild(tr);
   recalcManpowerTotals();
 }
 
@@ -994,13 +1028,13 @@ function onLabourCatChange(rowId) {
   if (!row) return;
   const cat = row.querySelector('.row-labour-cat-select')?.value;
   const rateInput = row.querySelector('.row-labour-rate-input');
-  if (rateInput && (!rateInput.value || rateInput.value === '0' || rateInput.value === '850' || rateInput.value === '550')) {
+  if (rateInput && (!rateInput.value || rateInput.value === '0')) {
     if (cat === 'Mason') rateInput.value = 850;
-    else if (cat === 'General Labour' || cat === 'Helper / Beldar') rateInput.value = 550;
-    else if (cat === 'Painter') rateInput.value = 800;
+    else if (cat === 'Labour' || cat === 'General Labour' || cat === 'Helper / Beldar') rateInput.value = 550;
+    else if (cat === 'Painter') rateInput.value = 700;
     else if (cat === 'Structural Welder') rateInput.value = 1000;
-    else if (cat === 'Electrician') rateInput.value = 950;
-    else rateInput.value = 700;
+    else if (cat === 'Other Contractor') rateInput.value = 1000;
+    else rateInput.value = 600;
   }
   recalcLabourRow(rowId);
 }
@@ -1012,7 +1046,7 @@ function recalcLabourRow(rowId) {
   const rate = parseFloat(row.querySelector('.row-labour-rate-input')?.value) || 0;
   const total = count * rate;
   const display = row.querySelector('.row-labour-total-display');
-  if (display) display.textContent = `₹${total.toLocaleString('en-US')}`;
+  if (display) display.textContent = total > 0 ? total.toLocaleString('en-US') : '-';
   recalcManpowerTotals();
 }
 
@@ -1023,7 +1057,7 @@ function removeLabourRow(rowId) {
 }
 
 function recalcManpowerTotals() {
-  const rows = document.querySelectorAll('.manpower-row-item');
+  const rows = document.querySelectorAll('.excel-row-item');
   let totalCount = 0;
   let totalCost = 0;
 
@@ -1036,21 +1070,191 @@ function recalcManpowerTotals() {
 
   const countDisplay = document.getElementById('manpower-live-count');
   const wagesDisplay = document.getElementById('manpower-live-wages');
+  const summaryCost = document.getElementById('summary-manpower-cost');
+
   if (countDisplay) countDisplay.textContent = totalCount;
-  if (wagesDisplay) wagesDisplay.textContent = `₹${totalCost.toLocaleString('en-US')}`;
+  if (wagesDisplay) wagesDisplay.textContent = totalCost > 0 ? totalCost.toLocaleString('en-US') : '-';
+  if (summaryCost) summaryCost.textContent = totalCost > 0 ? totalCost.toLocaleString('en-US') : '-';
+
+  recalcSiteCostSummary();
 }
 
+// -------------------------------------------------------------
+// DYNAMIC MACHINERY ROWS (EXCEL DAILY MORNING REPORT STRUCTURE)
+// -------------------------------------------------------------
+function addMorningReportMachineRow(data = null) {
+  const container = document.getElementById('machinery-rows-container');
+  if (!container) return;
+
+  const mRowId = `mach-row-${++machRowIdCounter}`;
+  const machine = data?.machine || 'JCB';
+  const ownership = data?.ownership || 'On Rent';
+  const remarks = data?.remarks || '';
+  const qty = data?.qty !== undefined ? data.qty : 1;
+  const rent = data?.rent !== undefined ? data.rent : (ownership === 'Own' ? 0 : 4500);
+  const total = ownership === 'Own' ? 0 : (qty * rent);
+
+  const tr = document.createElement('tr');
+  tr.className = 'excel-mach-row-item';
+  tr.id = mRowId;
+  tr.innerHTML = `
+    <td>
+      <input type="text" class="form-control row-mach-name-input excel-input-yellow" placeholder="e.g. JCB, Mixer" value="${escapeHtml(machine)}"/>
+    </td>
+    <td>
+      <select class="form-control row-mach-ownership-select excel-input-yellow" onchange="onMorningReportMachineOwnershipChange('${mRowId}')">
+        <option value="On Rent" ${ownership === 'On Rent' ? 'selected' : ''}>On Rent</option>
+        <option value="Own" ${ownership === 'Own' ? 'selected' : ''}>Own</option>
+      </select>
+    </td>
+    <td>
+      <input type="text" class="form-control row-mach-remarks-input excel-input-yellow" placeholder="Remarks" value="${escapeHtml(remarks)}"/>
+    </td>
+    <td>
+      <input type="number" class="form-control row-mach-qty-input excel-input-yellow" style="text-align:right" value="${qty}" min="0" oninput="recalcMorningReportMachineRow('${mRowId}')"/>
+    </td>
+    <td>
+      <input type="number" class="form-control row-mach-rent-input excel-input-yellow" style="text-align:right" value="${ownership === 'Own' ? '' : rent}" min="0" placeholder="0" oninput="recalcMorningReportMachineRow('${mRowId}')" ${ownership === 'Own' ? 'disabled style="background:#f1f5f9;opacity:0.6"' : ''}/>
+    </td>
+    <td style="text-align:right;font-weight:700;color:#1e3a8a">
+      <span class="row-mach-total-display">${total > 0 ? total.toLocaleString('en-US') : '-'}</span>
+    </td>
+    <td style="text-align:center">
+      <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;padding:4px 8px;border-radius:4px;border:none;cursor:pointer" onclick="removeMorningReportMachineRow('${mRowId}')" title="Delete Row">
+        <i class="fas fa-trash"></i>
+      </button>
+    </td>
+  `;
+
+  container.appendChild(tr);
+  recalcMachineryTotals();
+}
+
+function onMorningReportMachineOwnershipChange(mRowId) {
+  const row = document.getElementById(mRowId);
+  if (!row) return;
+  const ownership = row.querySelector('.row-mach-ownership-select')?.value;
+  const rentInput = row.querySelector('.row-mach-rent-input');
+  if (ownership === 'Own') {
+    if (rentInput) {
+      rentInput.value = '';
+      rentInput.disabled = true;
+      rentInput.style.background = '#f1f5f9';
+      rentInput.style.opacity = '0.6';
+    }
+  } else {
+    if (rentInput) {
+      rentInput.disabled = false;
+      rentInput.style.background = '#fefce8';
+      rentInput.style.opacity = '1';
+      if (!rentInput.value || rentInput.value === '0') rentInput.value = '4500';
+    }
+  }
+  recalcMorningReportMachineRow(mRowId);
+}
+
+function recalcMorningReportMachineRow(mRowId) {
+  const row = document.getElementById(mRowId);
+  if (!row) return;
+  const ownership = row.querySelector('.row-mach-ownership-select')?.value;
+  const qty = parseInt(row.querySelector('.row-mach-qty-input')?.value) || 0;
+  const rent = parseFloat(row.querySelector('.row-mach-rent-input')?.value) || 0;
+  const total = ownership === 'Own' ? 0 : (qty * rent);
+  const display = row.querySelector('.row-mach-total-display');
+  if (display) display.textContent = total > 0 ? total.toLocaleString('en-US') : '-';
+  recalcMachineryTotals();
+}
+
+function removeMorningReportMachineRow(mRowId) {
+  const row = document.getElementById(mRowId);
+  if (row) row.remove();
+  recalcMachineryTotals();
+}
+
+function recalcMachineryTotals() {
+  const rows = document.querySelectorAll('.excel-mach-row-item');
+  let totalRent = 0;
+
+  rows.forEach(r => {
+    const ownership = r.querySelector('.row-mach-ownership-select')?.value;
+    if (ownership === 'On Rent') {
+      const qty = parseInt(r.querySelector('.row-mach-qty-input')?.value) || 0;
+      const rent = parseFloat(r.querySelector('.row-mach-rent-input')?.value) || 0;
+      totalRent += (qty * rent);
+    }
+  });
+
+  const rentDisplay = document.getElementById('machinery-live-rent-total');
+  const summaryCost = document.getElementById('summary-machinery-cost');
+
+  if (rentDisplay) rentDisplay.textContent = totalRent > 0 ? totalRent.toLocaleString('en-US') : '-';
+  if (summaryCost) summaryCost.textContent = totalRent > 0 ? totalRent.toLocaleString('en-US') : '-';
+
+  recalcSiteCostSummary();
+}
+
+// -------------------------------------------------------------
+// SITE COST SUMMARY (TODAY) LIVE CALCULATION
+// -------------------------------------------------------------
+function recalcSiteCostSummary() {
+  const manpowerText = (document.getElementById('summary-manpower-cost')?.textContent || '0').replace(/[^0-9.]/g, '');
+  const machineryText = (document.getElementById('summary-machinery-cost')?.textContent || '0').replace(/[^0-9.]/g, '');
+  const employeeCostInput = document.getElementById('summary-employee-cost-input');
+
+  const manpowerCost = parseFloat(manpowerText) || 0;
+  const machineryCost = parseFloat(machineryText) || 0;
+  const employeeCost = parseFloat(employeeCostInput?.value) || 0;
+
+  const totalSiteCost = manpowerCost + machineryCost + employeeCost;
+
+  const totalEl = document.getElementById('summary-total-site-cost');
+  if (totalEl) totalEl.textContent = totalSiteCost > 0 ? totalSiteCost.toLocaleString('en-US') : '0';
+}
+
+// -------------------------------------------------------------
+// MODAL HOOK: PRELOAD EXACT EXCEL WORKBOOK STRUCTURE
+// -------------------------------------------------------------
 function openModal(modalId) {
   const el = document.getElementById(modalId);
   if (el) el.classList.add('active');
 
-  // If opening morning report modal and no labour rows exist, add initial rows
+  // Pre-load the exact Excel structure if opening Daily Morning Report
   if (modalId === 'modal-morning-report') {
-    const container = document.getElementById('manpower-rows-container');
-    if (container && container.children.length === 0) {
-      addLabourRow({ category: 'Mason', type: 'Chowk', details: 'Brickwork / Plaster', count: 1, rate: 850 });
-      addLabourRow({ category: 'General Labour', type: 'Chowk', details: 'Helper / Beldar', count: 2, rate: 550 });
+    const manpowerContainer = document.getElementById('manpower-rows-container');
+    const machContainer = document.getElementById('machinery-rows-container');
+
+    if (manpowerContainer && manpowerContainer.children.length === 0) {
+      // 8 Standard Rows from user's Excel sheet
+      addLabourRow({ category: 'Labour', type: 'Permanent', details: '', count: 5, rate: 600 });
+      addLabourRow({ category: 'Labour', type: 'Chowk', details: '', count: 3, rate: 500 });
+      addLabourRow({ category: 'Labour', type: 'Contractor', details: '', count: 10, rate: 550 });
+      addLabourRow({ category: 'Mason', type: 'Permanent', details: '', count: 2, rate: 900 });
+      addLabourRow({ category: 'Mason', type: 'Chowk', details: '', count: 1, rate: 800 });
+      addLabourRow({ category: 'Mason', type: 'Contractor', details: '', count: 2, rate: 850 });
+      addLabourRow({ category: 'Painter', type: '-', details: '', count: 2, rate: 700 });
+      addLabourRow({ category: 'Other Contractor', type: 'Other', details: 'Electrician', count: 1, rate: 1000 });
     }
+
+    if (machContainer && machContainer.children.length === 0) {
+      // 2 Standard Machinery Rows from user's Excel sheet
+      addMorningReportMachineRow({ machine: 'JCB', ownership: 'On Rent', remarks: '', qty: 1, rent: 4500 });
+      addMorningReportMachineRow({ machine: 'Concrete Mixer', ownership: 'Own', remarks: '', qty: 1, rent: 0 });
+    }
+
+    // Set default headers if empty
+    const repByInput = document.getElementById('report-reported-by-input');
+    if (repByInput && !repByInput.value) repByInput.value = 'Ramesh - Supervisor';
+
+    const empInput = document.getElementById('report-employees-on-site-input');
+    if (empInput && !empInput.value) empInput.value = 'Mahesh';
+
+    const workInput = document.getElementById('report-work-input');
+    if (workInput && !workInput.value) workInput.value = '2nd floor slab shuttering';
+
+    const remarksInput = document.getElementById('report-remarks-input');
+    if (remarksInput && !remarksInput.value) remarksInput.value = 'Cement needed tomorrow';
+
+    recalcSiteCostSummary();
   }
 }
 
@@ -1097,29 +1301,30 @@ function recalcMachineCost() {
 }
 
 // -------------------------------------------------------------
-// 1. SAVE DAILY MORNING REPORT
+// 1. SAVE DAILY MORNING REPORT (EXACT SOP EXCEL WORKBOOK LOGIC)
 // -------------------------------------------------------------
 async function saveMorningReport() {
   const date = document.getElementById('report-date-input').value;
   const site = document.getElementById('report-site-input').value;
   const status = document.getElementById('report-status-input').value;
-  const sup = document.getElementById('report-sup-input').value;
-  const attendance = document.getElementById('report-attendance-input').value;
+  const reportedBy = document.getElementById('report-reported-by-input').value.trim();
+  const employeesOnSite = document.getElementById('report-employees-on-site-input').value.trim();
   const work = document.getElementById('report-work-input').value.trim();
   const remarks = document.getElementById('report-remarks-input').value.trim();
+  const employeeCost = parseFloat(document.getElementById('summary-employee-cost-input')?.value) || 0;
 
-  if (!date || !site || !sup) {
-    showToast('Please specify Date, Work Site and Supervisor', 'error');
+  if (!date || !site || !reportedBy) {
+    showToast('Please specify Date, Work Site and Reported By', 'error');
     return;
   }
 
-  // Extract all dynamic Labour rows
-  const rows = document.querySelectorAll('.manpower-row-item');
+  // 1. Extract Manpower Rows
+  const manpowerRows = document.querySelectorAll('.excel-row-item');
   const manpower = [];
 
-  rows.forEach(r => {
-    const category = r.querySelector('.row-labour-cat-select')?.value || 'General Labour';
-    const type = r.querySelector('.row-labour-type-select')?.value || 'Chowk';
+  manpowerRows.forEach(r => {
+    const category = r.querySelector('.row-labour-cat-select')?.value || 'Labour';
+    const type = r.querySelector('.row-labour-type-select')?.value || 'Permanent';
     const details = (r.querySelector('.row-labour-details-input')?.value || '').trim();
     const count = parseInt(r.querySelector('.row-labour-count-input')?.value) || 0;
     const rate = parseFloat(r.querySelector('.row-labour-rate-input')?.value) || 0;
@@ -1130,50 +1335,253 @@ async function saveMorningReport() {
     }
   });
 
-  if (manpower.length === 0) {
-    showToast('Please add at least one labour deployment row with headcount > 0', 'error');
-    return;
-  }
+  const totalManpowerCost = manpower.reduce((a, b) => a + b.total, 0);
+  const totalManpowerCount = manpower.reduce((a, b) => a + b.count, 0);
 
-  const totalCost = manpower.reduce((a, b) => a + b.total, 0);
-  const totalCount = manpower.reduce((a, b) => a + b.count, 0);
+  // 2. Extract Machinery Rows
+  const machRows = document.querySelectorAll('.excel-mach-row-item');
+  const machinery = [];
 
-  await db.reports.add({
+  machRows.forEach(r => {
+    const machine = (r.querySelector('.row-mach-name-input')?.value || '').trim();
+    const ownership = r.querySelector('.row-mach-ownership-select')?.value || 'On Rent';
+    const machRemarks = (r.querySelector('.row-mach-remarks-input')?.value || '').trim();
+    const qty = parseInt(r.querySelector('.row-mach-qty-input')?.value) || 0;
+    const rent = ownership === 'Own' ? 0 : (parseFloat(r.querySelector('.row-mach-rent-input')?.value) || 0);
+    const total = qty * rent;
+
+    if (machine && qty > 0) {
+      machinery.push({ machine, ownership, remarks: machRemarks, qty, rent, total });
+    }
+  });
+
+  const totalMachineryOnRent = machinery.filter(m => m.ownership === 'On Rent').reduce((a, b) => a + b.total, 0);
+  const totalSiteCost = totalManpowerCost + totalMachineryOnRent + employeeCost;
+
+  // Extract supervisor name from "Ramesh - Supervisor"
+  const supClean = reportedBy.split('-')[0].trim();
+
+  // Save report
+  const reportId = await db.reports.add({
     date,
     siteName: site,
     siteStatus: status,
-    supervisorName: sup,
-    supervisorAttendance: attendance,
+    supervisorName: supClean,
+    reportedBy,
+    employeesOnSite,
     workDescription: work || 'Daily construction & site maintenance',
     manpower,
-    totalManpowerCost: totalCost,
-    totalManpowerCount: totalCount,
+    totalManpowerCost,
+    totalManpowerCount,
+    machinery,
+    totalMachineryOnRent,
+    employeeCost,
+    totalSiteCost,
     remarks,
     createdBy: currentOperator
   });
 
   // Auto-post wage expense entry
-  if (totalCost > 0) {
+  if (totalManpowerCost > 0) {
     await db.expenses.add({
       date,
-      supervisorName: sup,
+      supervisorName: supClean,
       siteName: site,
       category: 'Labour Wages',
-      amount: totalCost,
+      amount: totalManpowerCost,
       fundingSource: 'company',
-      paidTo: `Masons & Workers (${totalCount} Nos)`,
+      paidTo: `Masons & Workers (${totalManpowerCount} Nos)`,
       voucherNo: `AUTO-REP-${Date.now().toString().slice(-4)}`,
-      remarks: work || 'Daily labour payment as per morning report',
+      remarks: work || 'Daily manpower cost as per morning report',
       createdBy: currentOperator
     });
   }
 
-  await logAudit('Morning Report Recorded', 'Reports', `Recorded ${totalCount} workers (₹${totalCost.toLocaleString('en-US')}) at ${site} by ${sup}`);
+  // Auto-post machinery on rent expense entry
+  if (totalMachineryOnRent > 0) {
+    await db.expenses.add({
+      date,
+      supervisorName: supClean,
+      siteName: site,
+      category: 'Machinery on Rent',
+      amount: totalMachineryOnRent,
+      fundingSource: 'company',
+      paidTo: `Machinery on Rent (${machinery.filter(m => m.ownership === 'On Rent').map(m => m.machine).join(', ')})`,
+      voucherNo: `AUTO-MACH-${Date.now().toString().slice(-4)}`,
+      remarks: 'Machinery daily rent as per morning report',
+      createdBy: currentOperator
+    });
+  }
+
+  await logAudit('Morning Report Recorded', 'Reports', `Recorded Site Cost ₹${totalSiteCost.toLocaleString('en-US')} (Manpower: ₹${totalManpowerCost}, Machinery: ₹${totalMachineryOnRent}, Employee: ₹${employeeCost}) at ${site}`);
 
   closeModal('modal-morning-report');
-  showToast('Morning report successfully saved and wages posted!', 'success');
+  showToast(`Morning report saved! Total Site Cost: ₹${totalSiteCost.toLocaleString('en-US')}`, 'success');
   updateDrilldownContent();
   renderMorningReportsTable();
+}
+
+// -------------------------------------------------------------
+// VIEW EXACT EXCEL MORNING REPORT SHEET IN MODAL
+// -------------------------------------------------------------
+async function viewReportSheet(reportId) {
+  const r = await db.reports.get(reportId);
+  if (!r) return;
+
+  const content = document.getElementById('report-sheet-modal-content');
+  if (!content) return;
+
+  const manpower = r.manpower || [];
+  const machinery = r.machinery || [];
+  const totalCost = r.totalSiteCost || ((r.totalManpowerCost || 0) + (r.totalMachineryOnRent || 0) + (r.employeeCost || 0));
+
+  content.innerHTML = `
+    <div class="excel-report-card">
+      <div class="excel-report-banner">
+        <div>
+          <h3>DAILY MORNING REPORT</h3>
+          <small style="opacity:0.8;font-size:11px">Fill the yellow cells. All numbers shown are EXAMPLES. Totals and cost summary calculate automatically.</small>
+        </div>
+        <div style="font-weight:700;font-size:13px">
+          Status: <span class="badge ${r.siteStatus === 'Running' ? 'badge-running' : 'badge-hold'}">${escapeHtml(r.siteStatus || 'Running')}</span>
+        </div>
+      </div>
+
+      <!-- Header Information -->
+      <table class="excel-meta-table">
+        <tr>
+          <td class="meta-label">Date</td>
+          <td class="meta-val" style="width:30%">${escapeHtml(r.date)}</td>
+          <td class="meta-label">Reported By (Name + Designation)</td>
+          <td class="meta-val">${escapeHtml(r.reportedBy || r.supervisorName || '-')}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Site Name</td>
+          <td class="meta-val">${escapeHtml(r.siteName)}</td>
+          <td class="meta-label">Company Employee(s) on Site</td>
+          <td class="meta-val">${escapeHtml(r.employeesOnSite || '-')}</td>
+        </tr>
+      </table>
+
+      <!-- MANPOWER -->
+      <div class="excel-section-header">
+        <span>MANPOWER</span>
+        <span>Total Headcount: ${r.totalManpowerCount || manpower.reduce((a, b) => a + b.count, 0)}</span>
+      </div>
+      <table class="excel-data-table">
+        <thead>
+          <tr>
+            <th style="width:20%">Category</th>
+            <th style="width:20%">Type</th>
+            <th style="width:20%">Details</th>
+            <th style="width:12%;text-align:right">Number</th>
+            <th style="width:14%;text-align:right">Rate per Head</th>
+            <th style="width:14%;text-align:right">Total (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${manpower.map(m => `
+            <tr>
+              <td>${escapeHtml(m.category)}</td>
+              <td>${escapeHtml(m.type || '-')}</td>
+              <td>${escapeHtml(m.details || '')}</td>
+              <td style="text-align:right;color:#1e3a8a;font-weight:700">${m.count}</td>
+              <td style="text-align:right;color:#1e3a8a;font-weight:700">₹${parseFloat(m.rate).toLocaleString('en-US')}</td>
+              <td style="text-align:right;font-weight:700">₹${(parseFloat(m.total) || (m.count * m.rate)).toLocaleString('en-US')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr class="excel-total-row">
+            <td colspan="3" style="text-align:left">Total Manpower</td>
+            <td style="text-align:right;color:#1e3a8a;font-size:14px">${r.totalManpowerCount || manpower.reduce((a, b) => a + b.count, 0)}</td>
+            <td></td>
+            <td style="text-align:right;color:#1e3a8a;font-size:15px">₹${(parseFloat(r.totalManpowerCost) || 0).toLocaleString('en-US')}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- MACHINERY AT SITE -->
+      <div class="excel-section-header" style="margin-top:12px">
+        <span>MACHINERY AT SITE</span>
+      </div>
+      <table class="excel-data-table">
+        <thead>
+          <tr>
+            <th style="width:25%">Machine</th>
+            <th style="width:20%">Ownership</th>
+            <th style="width:25%">Remarks</th>
+            <th style="width:10%;text-align:right">Qty</th>
+            <th style="width:10%;text-align:right">Rent per Day</th>
+            <th style="width:10%;text-align:right">Total (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${machinery.length > 0 ? machinery.map(m => `
+            <tr>
+              <td><strong>${escapeHtml(m.machine)}</strong></td>
+              <td><span class="badge ${m.ownership === 'Own' ? 'badge-company' : 'badge-self'}">${escapeHtml(m.ownership)}</span></td>
+              <td>${escapeHtml(m.remarks || '')}</td>
+              <td style="text-align:right;color:#1e3a8a;font-weight:700">${m.qty}</td>
+              <td style="text-align:right;color:#1e3a8a;font-weight:700">${m.ownership === 'Own' ? '-' : `₹${parseFloat(m.rent || 0).toLocaleString('en-US')}`}</td>
+              <td style="text-align:right;font-weight:700">${m.ownership === 'Own' ? '-' : `₹${parseFloat(m.total || 0).toLocaleString('en-US')}`}</td>
+            </tr>
+          `).join('') : `
+            <tr><td colspan="6" style="text-align:center;padding:12px;color:var(--text-muted)">No machinery records on this day.</td></tr>
+          `}
+        </tbody>
+        <tfoot>
+          <tr class="excel-total-row">
+            <td colspan="5" style="text-align:left">Total Machinery on Rent</td>
+            <td style="text-align:right;color:#1e3a8a;font-size:15px">₹${(parseFloat(r.totalMachineryOnRent) || 0).toLocaleString('en-US')}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- SITE COST SUMMARY (TODAY) -->
+      <div class="excel-section-header" style="margin-top:12px">
+        <span>SITE COST SUMMARY (TODAY)</span>
+      </div>
+      <table class="excel-summary-table">
+        <tbody>
+          <tr>
+            <td class="sum-label">Manpower Cost</td>
+            <td class="sum-val">₹${(parseFloat(r.totalManpowerCost) || 0).toLocaleString('en-US')}</td>
+          </tr>
+          <tr>
+            <td class="sum-label">Machinery on Rent</td>
+            <td class="sum-val">₹${(parseFloat(r.totalMachineryOnRent) || 0).toLocaleString('en-US')}</td>
+          </tr>
+          <tr>
+            <td class="sum-label">Company Employee Cost (from 'Employee Site Visits')</td>
+            <td class="sum-val">₹${(parseFloat(r.employeeCost) || 0).toLocaleString('en-US')}</td>
+          </tr>
+          <tr class="sum-total-row">
+            <td class="sum-label" style="font-size:15px;font-weight:800">Total Site Cost</td>
+            <td class="sum-val" style="font-size:18px;font-weight:800;color:#1e3a8a">₹${totalCost.toLocaleString('en-US')}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Work Today & Remarks -->
+      <table class="excel-meta-table" style="margin-top:12px">
+        <tr>
+          <td class="meta-label">Work Today</td>
+          <td class="meta-val" colspan="3">${escapeHtml(r.workDescription || '-')}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Remarks</td>
+          <td class="meta-val" colspan="3">${escapeHtml(r.remarks || '-')}</td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  openModal('modal-view-report-sheet');
+}
+
+function printReportSheetModal() {
+  window.print();
 }
 
 // -------------------------------------------------------------

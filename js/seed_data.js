@@ -20,7 +20,8 @@ const SEED_DATA = {
     { id: 15, name: 'Mohinder Lalru', location: 'Lalru, Punjab', code: 'LALRU-01', defaultSupervisor: 'Divyansh', status: 'Running' },
     { id: 16, name: 'Tepla Site', location: 'Tepla, Haryana', code: 'TEPLA-01', defaultSupervisor: 'Sonu', status: 'Running' },
     { id: 17, name: 'Rock Rose Chandigarh', location: 'Sector 20, Chandigarh', code: 'CHD-20', defaultSupervisor: 'Divyansh', status: 'Running' },
-    { id: 18, name: 'Birumal Jairam Amloh', location: 'Amloh, Punjab', code: 'AMLOH-01', defaultSupervisor: 'Divyansh', status: 'Running' }
+    { id: 18, name: 'Birumal Jairam Amloh', location: 'Amloh, Punjab', code: 'AMLOH-01', defaultSupervisor: 'Divyansh', status: 'Running' },
+    { id: 19, name: 'Site A', location: 'Commercial Complex Project', code: 'SITE-A', defaultSupervisor: 'Ramesh', status: 'Running' }
   ],
 
   supervisors: [
@@ -33,7 +34,8 @@ const SEED_DATA = {
     { id: 7, name: 'Sonu', phone: '+91 98711 02007', role: 'Site Supervisor', primarySite: 'Tepla Site', status: 'Present' },
     { id: 8, name: 'Bipin', phone: '+91 98711 02008', role: 'Head of Operations & Imprest Admin', primarySite: 'Head Office / Field', status: 'Present' },
     { id: 9, name: 'Rakesh', phone: '+91 98711 02009', role: 'Site Supervisor', primarySite: 'Field Projects', status: 'Present' },
-    { id: 10, name: 'Anjan', phone: '+91 98711 02010', role: 'Junior Supervisor', primarySite: 'Devaryian Office', status: 'Absent' }
+    { id: 10, name: 'Anjan', phone: '+91 98711 02010', role: 'Junior Supervisor', primarySite: 'Devaryian Office', status: 'Absent' },
+    { id: 11, name: 'Ramesh', phone: '+91 98711 02011', role: 'Site Supervisor', primarySite: 'Site A', status: 'Present' }
   ],
 
   // Daily Field Reports (Matching Day Book images of 2026-10-18)
@@ -168,6 +170,37 @@ const SEED_DATA = {
       totalManpowerCost: 3000,
       totalManpowerCount: 4,
       remarks: 'Foundation digging 80% done.'
+    },
+    {
+      id: 9,
+      date: '2026-10-13',
+      siteName: 'Site A',
+      siteStatus: 'Running',
+      reportedBy: 'Ramesh - Supervisor',
+      supervisorName: 'Ramesh',
+      supervisorAttendance: 'Present',
+      employeesOnSite: 'Mahesh',
+      workDescription: '2nd floor slab shuttering',
+      manpower: [
+        { category: 'Labour', type: 'Permanent', details: '', count: 5, rate: 600, total: 3000 },
+        { category: 'Labour', type: 'Chowk', details: '', count: 3, rate: 500, total: 1500 },
+        { category: 'Labour', type: 'Contractor', details: '', count: 10, rate: 550, total: 5500 },
+        { category: 'Mason', type: 'Permanent', details: '', count: 2, rate: 900, total: 1800 },
+        { category: 'Mason', type: 'Chowk', details: '', count: 1, rate: 800, total: 800 },
+        { category: 'Mason', type: 'Contractor', details: '', count: 2, rate: 850, total: 1700 },
+        { category: 'Painter', type: 'Permanent', details: '', count: 2, rate: 700, total: 1400 },
+        { category: 'Other Contractor', type: 'Other', details: 'Electrician', count: 1, rate: 1000, total: 1000 }
+      ],
+      totalManpowerCount: 26,
+      totalManpowerCost: 16700,
+      machinery: [
+        { machine: 'JCB', ownership: 'On Rent', remarks: '', qty: 1, rent: 4500, total: 4500 },
+        { machine: 'Concrete Mixer', ownership: 'Own', remarks: '', qty: 1, rent: 0, total: 0 }
+      ],
+      totalMachineryOnRent: 4500,
+      employeeCost: 1400,
+      totalSiteCost: 22600,
+      remarks: 'Cement needed tomorrow'
     }
   ],
 
@@ -272,6 +305,46 @@ const SEED_DATA = {
       paidBy: 'Jahid',
       status: 'Working',
       remarks: 'Old concrete breaking for electrical cable trench (3.0 hrs)'
+    },
+    {
+      id: 7,
+      date: '2026-10-13',
+      machineName: 'JCB 3DX Excavator',
+      regNo: 'DL-01-JCB-45',
+      siteName: 'Site A',
+      supervisorName: 'Ramesh',
+      ownership: 'On Rent',
+      billingType: 'Daily Rate',
+      hoursUsed: 0,
+      daysUsed: 1,
+      ratePerHour: 0,
+      ratePerDay: 4500,
+      machineCost: 4500,
+      fuelCost: 0,
+      totalCost: 4500,
+      paidBy: 'Ramesh',
+      status: 'Working',
+      remarks: 'Earthwork excavation and shuttering support'
+    },
+    {
+      id: 8,
+      date: '2026-10-13',
+      machineName: 'Concrete Mixer 10/7',
+      regNo: 'MX-SITE-A',
+      siteName: 'Site A',
+      supervisorName: 'Ramesh',
+      ownership: 'Own',
+      billingType: 'Daily Rate',
+      hoursUsed: 0,
+      daysUsed: 1,
+      ratePerHour: 0,
+      ratePerDay: 0,
+      machineCost: 0,
+      fuelCost: 0,
+      totalCost: 0,
+      paidBy: 'Company',
+      status: 'Working',
+      remarks: 'Company owned concrete mixer for slab casting'
     }
   ],
 
